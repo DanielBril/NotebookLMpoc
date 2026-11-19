@@ -1,10 +1,14 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+
+class BlockedAccountError extends CredentialsSignin {
+  code = "account_blocked";
+}
 
 function sanitizeUsernameBase(raw: string): string {
   const cleaned = raw
@@ -72,6 +76,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        if (user.isBlocked) {
+          throw new BlockedAccountError();
+        }
+
         await prisma.user.update({
           where: { id: user.id },
           data: { lastActiveAt: new Date() },
@@ -114,6 +122,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
           });
         } else {
+          if (dbUser.isBlocked) {
+            return "/login?error=AccountBlocked";
+          }
           dbUser = await prisma.user.update({
             where: { id: dbUser.id },
             data: {

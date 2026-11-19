@@ -5,9 +5,9 @@ import { auth } from "@/lib/auth";
 import { AdminDashboardClient } from "@/components/admin/AdminDashboardClient";
 
 export const metadata: Metadata = {
-  title: "Admin Eagle's Eye Portal — ContextLM",
+  title: "מרכז בקרה וניהול — ContextLM",
   description:
-    "Observability portal for ContextLM token economics, peak usage hours, per-user cost breakdown, and prompt-injection guardrail events.",
+    "פורטל בקרה לניהול משתמשים, מדדי שימוש, חסימת משתמשים ובקרת תכנים שסומנו כמסוכנים בלבד.",
 };
 
 export default async function AdminPage() {

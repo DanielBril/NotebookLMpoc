@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { QueryStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
 import { calculateCostUsd } from "@/lib/pricing";
 import {
@@ -9,18 +10,20 @@ import {
   inspectUserInput,
   sanitizeAuditSnippet,
   shouldRunMicroClassifier,
+  type GuardrailLang,
 } from "@/lib/guardrails/inputFilter";
 import {
   assembleSandboxedContext,
   buildGroundedSystemPrompt,
-  MANDATORY_REFUSAL,
+  getMandatoryRefusal,
+  isMandatoryRefusal,
   orderSourcesDeterministically,
   type OrderedSource,
   wrapUserQuery,
 } from "@/lib/guardrails/systemPrompt";
 import {
   createOutputGuardFilter,
-  OUTPUT_GUARD_SAFE_REFUSAL,
+  getOutputGuardRefusal,
 } from "@/lib/guardrails/outputFilter";
 import { runMicroClassifier } from "@/lib/guardrails/microClassifier";
 
@@ -55,7 +58,6 @@ function extractCitationsFromAnswer(
     const src = orderedSources[idx - 1];
     if (!src) continue;
 
-    // Pick a clean excerpt from the cited document
     const snippet =
       src.extractedText.length > 360
         ? `${src.extractedText.slice(0, 360).trim()}…`
@@ -77,10 +79,27 @@ function buildSseEvent(event: string, payload: unknown): Uint8Array {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
 }
 
+function blockedAccountResponse(reason: string | null) {
+  return NextResponse.json(
+    {
+      error: "ACCOUNT_BLOCKED",
+      blocked: true,
+      accountBlocked: true,
+      reason,
+    },
+    { status: 403 }
+  );
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const status = await getActiveUserStatus(session.user.id);
+  if (status.isBlocked) {
+    return blockedAccountResponse(status.blockedReason);
   }
 
   const messages = await prisma.message.findMany({
@@ -110,6 +129,11 @@ export async function DELETE() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const status = await getActiveUserStatus(session.user.id);
+  if (status.isBlocked) {
+    return blockedAccountResponse(status.blockedReason);
+  }
+
   await prisma.message.deleteMany({
     where: { userId: session.user.id },
   });
@@ -123,6 +147,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const activeUser = await getActiveUserStatus(session.user.id);
+  if (activeUser.isBlocked) {
+    return blockedAccountResponse(activeUser.blockedReason);
+  }
+
   const requestStartedAt = Date.now();
   const now = new Date();
   const hourOfDay = now.getUTCHours();
@@ -130,20 +159,37 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const primaryModel = process.env.OPENAI_PRIMARY_MODEL || "gpt-6-luna";
 
-  let body: { query?: string };
+  let body: { query?: string; lang?: string };
   try {
-    body = (await req.json()) as { query?: string };
+    body = (await req.json()) as { query?: string; lang?: string };
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
   }
 
+  const lang: GuardrailLang = body.lang === "en" ? "en" : "he";
+  const mandatoryRefusal = getMandatoryRefusal(lang);
+  const outputGuardRefusal = getOutputGuardRefusal(lang);
+
   const query = (body.query ?? "").trim();
   if (!query) {
-    return NextResponse.json({ error: "Query cannot be empty." }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          lang === "he"
+            ? "לא ניתן לשלוח שאילתה ריקה."
+            : "Query cannot be empty.",
+      },
+      { status: 400 }
+    );
   }
   if (query.length > MAX_QUERY_CHARS) {
     return NextResponse.json(
-      { error: `Query exceeds maximum length of ${MAX_QUERY_CHARS} characters.` },
+      {
+        error:
+          lang === "he"
+            ? `השאילתה חורגת מהאורך המרבי של ${MAX_QUERY_CHARS} תווים.`
+            : `Query exceeds maximum length of ${MAX_QUERY_CHARS} characters.`,
+      },
       { status: 400 }
     );
   }
@@ -156,10 +202,14 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   // LAYER 1: Deterministic Regex, Base64 Smuggling & XML Spoofing Pre-Filter
   // ---------------------------------------------------------------------------
-  const layer1 = inspectUserInput(query);
+  const layer1 = inspectUserInput(query, lang);
   if (layer1.blocked && layer1.status) {
     const latencyMs = Date.now() - requestStartedAt;
-    const alertContent = `Guardrail Blocked (${layer1.layer}): ${layer1.reason}`;
+    const isDangerous = layer1.status === "BLOCKED_INJECTION";
+    const alertContent =
+      lang === "he"
+        ? `נחסם על ידי מנגנון האבטחה (${layer1.layer}): ${layer1.reason}`
+        : `Guardrail Blocked (${layer1.layer}): ${layer1.reason}`;
 
     const [, alertMessage] = await Promise.all([
       prisma.message.create({
@@ -178,11 +228,12 @@ export async function POST(req: NextRequest) {
           totalTokens: 0,
           estimatedCostUsd: 0,
           latencyMs,
-          status:
-            layer1.status === "BLOCKED_INJECTION"
-              ? QueryStatus.BLOCKED_INJECTION
-              : QueryStatus.BLOCKED_OUT_OF_SCOPE,
-          guardrailReason: `[${layer1.rule}] ${layer1.reason} | Snippet: "${layer1.sanitizedSnippet}"`,
+          status: isDangerous
+            ? QueryStatus.BLOCKED_INJECTION
+            : QueryStatus.BLOCKED_OUT_OF_SCOPE,
+          // Privacy rule: NEVER store user text for non-dangerous out-of-scope prompts.
+          guardrailReason: `[${layer1.rule}] ${layer1.reason}`,
+          flaggedText: isDangerous ? layer1.sanitizedSnippet : null,
           hourOfDay,
           dayOfWeek,
         },
@@ -226,7 +277,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         role: "assistant",
-        content: MANDATORY_REFUSAL,
+        content: mandatoryRefusal,
       },
     });
     await prisma.usageLog.create({
@@ -240,6 +291,7 @@ export async function POST(req: NextRequest) {
         estimatedCostUsd: 0,
         latencyMs,
         status: QueryStatus.NO_CONTEXT_FOUND,
+        flaggedText: null,
         hourOfDay,
         dayOfWeek,
       },
@@ -247,7 +299,7 @@ export async function POST(req: NextRequest) {
 
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(buildSseEvent("token", { content: MANDATORY_REFUSAL }));
+        controller.enqueue(buildSseEvent("token", { content: mandatoryRefusal }));
         controller.enqueue(
           buildSseEvent("done", {
             messageId: refusalMsg.id,
@@ -280,7 +332,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "OPENAI_API_KEY is not configured on the server. Add your OpenAI API key in environment variables.",
+          lang === "he"
+            ? "מפתח OPENAI_API_KEY אינו מוגדר בשרת. אנא הוסיפו מפתח API במשתני הסביבה."
+            : "OPENAI_API_KEY is not configured on the server. Add your OpenAI API key in environment variables.",
       },
       { status: 503 }
     );
@@ -294,10 +348,14 @@ export async function POST(req: NextRequest) {
   if (shouldRunMicroClassifier(query)) {
     const cls = await runMicroClassifier(openai, query);
     if (cls.isInjection || cls.isGenerativeOutOfScope) {
-      const status = cls.isInjection
+      const isDangerous = cls.isInjection;
+      const status = isDangerous
         ? QueryStatus.BLOCKED_INJECTION
         : QueryStatus.BLOCKED_OUT_OF_SCOPE;
-      const alertContent = `Guardrail Blocked (Layer 4 Micro-Classifier): ${cls.reason}`;
+      const alertContent =
+        lang === "he"
+          ? `נחסם על ידי מסווג האבטחה (שכבה 4): ${cls.reason}`
+          : `Guardrail Blocked (Layer 4 Micro-Classifier): ${cls.reason}`;
 
       const [, alertMessage] = await Promise.all([
         prisma.message.create({
@@ -317,7 +375,9 @@ export async function POST(req: NextRequest) {
             estimatedCostUsd: cls.estimatedCostUsd,
             latencyMs: Date.now() - requestStartedAt,
             status,
-            guardrailReason: `[L4_MICRO_CLASSIFIER] ${cls.reason} | Snippet: "${sanitizeAuditSnippet(query)}"`,
+            // Privacy rule: ONLY store flaggedText when classified as dangerous injection
+            guardrailReason: `[L4_MICRO_CLASSIFIER] ${cls.reason}`,
+            flaggedText: isDangerous ? sanitizeAuditSnippet(query) : null,
             hourOfDay,
             dayOfWeek,
           },
@@ -352,7 +412,7 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   const nonce = generateNonce();
   const orderedSources = orderSourcesDeterministically(activeDocs);
-  const systemPrompt = buildGroundedSystemPrompt(nonce);
+  const systemPrompt = buildGroundedSystemPrompt(nonce, lang);
   const sandboxedContext = assembleSandboxedContext(orderedSources, nonce);
   const wrappedQuery = wrapUserQuery(query, nonce);
 
@@ -368,7 +428,6 @@ export async function POST(req: NextRequest) {
       let abortedByOutputGuard = false;
 
       try {
-        // Send ordered source index map immediately so client can resolve citations live
         controller.enqueue(
           buildSseEvent("meta", {
             sources: orderedSources.map((s) => ({
@@ -408,13 +467,12 @@ export async function POST(req: NextRequest) {
             ttftMs = Date.now() - requestStartedAt;
           }
 
-          // LAYER 4 Output Canary & System-Tag Leakage Check
           const guardCheck = outputGuard.inspectChunk(delta);
           if (!guardCheck.safe) {
             abortedByOutputGuard = true;
             controller.enqueue(
               buildSseEvent("guardrail_abort", {
-                content: OUTPUT_GUARD_SAFE_REFUSAL,
+                content: outputGuardRefusal,
                 reason: guardCheck.reason,
               })
             );
@@ -440,7 +498,7 @@ export async function POST(req: NextRequest) {
             data: {
               userId,
               role: "system_alert",
-              content: OUTPUT_GUARD_SAFE_REFUSAL,
+              content: outputGuardRefusal,
             },
           });
 
@@ -455,7 +513,8 @@ export async function POST(req: NextRequest) {
               estimatedCostUsd,
               latencyMs,
               status: QueryStatus.BLOCKED_INJECTION,
-              guardrailReason: `[L4_OUTPUT_CANARY] ${reason} | Snippet: "${sanitizeAuditSnippet(query)}"`,
+              guardrailReason: `[L4_OUTPUT_CANARY] ${reason}`,
+              flaggedText: sanitizeAuditSnippet(query),
               hourOfDay,
               dayOfWeek,
             },
@@ -477,10 +536,8 @@ export async function POST(req: NextRequest) {
             })
           );
         } else {
-          const finalContent = fullAnswer.trim() || MANDATORY_REFUSAL;
-          const isRefusal = finalContent.includes(
-            "I could not find the answer to that question in your uploaded sources"
-          );
+          const finalContent = fullAnswer.trim() || mandatoryRefusal;
+          const isRefusal = isMandatoryRefusal(finalContent);
           const citations = isRefusal
             ? []
             : extractCitationsFromAnswer(finalContent, orderedSources);
@@ -507,6 +564,7 @@ export async function POST(req: NextRequest) {
               status: isRefusal
                 ? QueryStatus.NO_CONTEXT_FOUND
                 : QueryStatus.SUCCESS,
+              flaggedText: null,
               hourOfDay,
               dayOfWeek,
             },
@@ -544,7 +602,8 @@ export async function POST(req: NextRequest) {
               estimatedCostUsd: 0,
               latencyMs,
               status: QueryStatus.ERROR,
-              guardrailReason: message.slice(0, 240),
+              guardrailReason: null,
+              flaggedText: null,
               hourOfDay,
               dayOfWeek,
             },

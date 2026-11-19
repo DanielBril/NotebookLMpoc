@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
 import { MAX_ACTIVE_CONTEXT_TOKENS } from "@/lib/fileParser";
 
 export const runtime = "nodejs";
+
+function blockedResponse(reason: string | null) {
+  return NextResponse.json(
+    { error: "ACCOUNT_BLOCKED", accountBlocked: true, reason },
+    { status: 403 }
+  );
+}
 
 export async function GET(
   _req: NextRequest,
@@ -12,6 +20,11 @@ export async function GET(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return blockedResponse(userStatus.blockedReason);
   }
 
   const { id } = await context.params;
@@ -53,6 +66,11 @@ export async function PATCH(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return blockedResponse(userStatus.blockedReason);
   }
 
   const { id } = await context.params;
@@ -118,6 +136,11 @@ export async function DELETE(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return blockedResponse(userStatus.blockedReason);
   }
 
   const { id } = await context.params;

@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Heebo, Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
+
+const heebo = Heebo({
+  variable: "--font-heebo",
+  subsets: ["hebrew", "latin"],
+  display: "swap",
+});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -16,9 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ContextLM — Fast Grounded Document Q&A",
+  title: "ContextLM — מענה חכם ומבוסס ממסמכים",
   description:
-    "Upload up to 10 documents and ask strictly grounded questions with inline citations, sub-second streaming latency, and 4-layer prompt-injection guardrails.",
+    "העלו עד 10 מסמכים ושאלו שאלות מבוססות מקורות בלבד עם הפניות ישירות, תגובה מהירה בזמן אמת והגנת 4 שכבות מפני הזרקת פרומפטים.",
 };
 
 export default function RootLayout({
@@ -28,10 +34,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      lang="he"
+      dir="rtl"
+      suppressHydrationWarning
+      className={`${heebo.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#f7fafb] text-[#373737] flex flex-col">
+      <body className="min-h-full bg-[#f2fafb] text-[#253237] flex flex-col">
         <Providers>{children}</Providers>
       </body>
     </html>

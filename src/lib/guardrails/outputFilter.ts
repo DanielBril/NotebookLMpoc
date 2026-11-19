@@ -1,4 +1,5 @@
 import { CANARY_TOKEN } from "@/lib/guardrails/systemPrompt";
+import type { GuardrailLang } from "@/lib/guardrails/inputFilter";
 
 export interface OutputFilterCheckResult {
   safe: boolean;
@@ -28,8 +29,17 @@ const LEAK_PATTERNS: Array<{ id: string; pattern: RegExp; reason: string }> = [
   },
 ];
 
-export const OUTPUT_GUARD_SAFE_REFUSAL =
+export const OUTPUT_GUARD_SAFE_REFUSAL_HE =
+  "התגובה נחסמה על ידי מנגנון הגנת הפלט של ContextLM משום שזוהה ניסיון לחשוף הנחיות מערכת מוגנות. אנא שאלו שאלה עובדתית על המקורות שהעליתם.";
+
+export const OUTPUT_GUARD_SAFE_REFUSAL_EN =
   "Response blocked by ContextLM Output Guardrails because the generated content attempted to disclose protected system instructions. Please ask a factual question about your uploaded sources.";
+
+export const OUTPUT_GUARD_SAFE_REFUSAL = OUTPUT_GUARD_SAFE_REFUSAL_HE;
+
+export function getOutputGuardRefusal(lang: GuardrailLang = "he"): string {
+  return lang === "en" ? OUTPUT_GUARD_SAFE_REFUSAL_EN : OUTPUT_GUARD_SAFE_REFUSAL_HE;
+}
 
 /**
  * Stateful streaming output inspector that keeps a sliding tail buffer so

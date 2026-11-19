@@ -8,6 +8,27 @@ export const runtime = "nodejs";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MON_FIRST_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
+/**
+ * Extracts a legacy snippet if an older BLOCKED_INJECTION row encoded
+ * `| Snippet: "..."` inside guardrailReason before flaggedText existed.
+ */
+function extractLegacyFlaggedText(guardrailReason: string | null): {
+  ruleReason: string;
+  legacyText: string | null;
+} {
+  if (!guardrailReason) {
+    return { ruleReason: "Flagged as dangerous by security guardrails", legacyText: null };
+  }
+  const match = guardrailReason.match(/^(.*?)\s*\|\s*Snippet:\s*"([\s\S]*)"$/);
+  if (match) {
+    return {
+      ruleReason: match[1].trim(),
+      legacyText: match[2].trim() || null,
+    };
+  }
+  return { ruleReason: guardrailReason, legacyText: null };
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -23,6 +44,10 @@ export async function GET() {
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+  // PRIVACY GUARANTEE:
+  // - Never query prisma.message (users' chat texts are inaccessible to admins).
+  // - Never select Document.extractedText or Document.filename (only numeric quota metadata).
+  // - Expose flaggedText ONLY for rows flagged as dangerous (QueryStatus.BLOCKED_INJECTION).
   const [users, documents, usageLogs] = await Promise.all([
     prisma.user.findMany({
       orderBy: { lastActiveAt: "desc" },
@@ -33,6 +58,9 @@ export async function GET() {
         name: true,
         role: true,
         provider: true,
+        isBlocked: true,
+        blockedAt: true,
+        blockedReason: true,
         createdAt: true,
         lastActiveAt: true,
       },
@@ -60,6 +88,7 @@ export async function GET() {
         latencyMs: true,
         status: true,
         guardrailReason: true,
+        flaggedText: true,
         hourOfDay: true,
         dayOfWeek: true,
         createdAt: true,
@@ -67,7 +96,7 @@ export async function GET() {
     }),
   ]);
 
-  // Aggregate documents per user
+  // Aggregate documents per user (counts & sizes only, zero text or filename access)
   const docsByUser = new Map<
     string,
     { activeFiles: number; totalFiles: number; totalBytes: number }
@@ -87,7 +116,6 @@ export async function GET() {
     docsByUser.set(doc.userId, entry);
   }
 
-  // Aggregate usage logs globally, hourly, daily, and per-user
   let totalPromptTokens = 0;
   let totalCachedTokens = 0;
   let totalCompletionTokens = 0;
@@ -95,7 +123,7 @@ export async function GET() {
   let totalCostUsd = 0;
   let totalLatencyMs = 0;
   let latencySamples = 0;
-  let guardrailBlocks = 0;
+  let dangerousFlags = 0;
   let validQueries = 0;
 
   const hourlyBuckets = Array.from({ length: 24 }, (_, hour) => ({
@@ -119,7 +147,7 @@ export async function GET() {
     string,
     {
       validQueries: number;
-      blockedAttempts: number;
+      dangerousFlags: number;
       promptTokens: number;
       cachedTokens: number;
       completionTokens: number;
@@ -128,17 +156,28 @@ export async function GET() {
     }
   >();
 
-  const userNameById = new Map<string, string>();
+  const userMap = new Map<
+    string,
+    { username: string; isBlocked: boolean; role: Role }
+  >();
   for (const u of users) {
-    userNameById.set(u.id, u.username);
+    userMap.set(u.id, {
+      username: u.username,
+      isBlocked: u.isBlocked,
+      role: u.role,
+    });
   }
 
-  const guardrailFeed: Array<{
+  // ONLY texts flagged as dangerous (BLOCKED_INJECTION) are included here.
+  const flaggedDangerousFeed: Array<{
     id: string;
     createdAt: string;
+    userId: string;
     username: string;
-    status: QueryStatus;
-    guardrailReason: string;
+    userRole: Role;
+    isUserBlocked: boolean;
+    ruleReason: string;
+    flaggedText: string;
     model: string;
     latencyMs: number;
   }> = [];
@@ -150,19 +189,25 @@ export async function GET() {
     totalTokens += log.totalTokens;
     totalCostUsd += log.estimatedCostUsd;
 
-    const isBlocked =
-      log.status === QueryStatus.BLOCKED_INJECTION ||
-      log.status === QueryStatus.BLOCKED_OUT_OF_SCOPE;
+    const isDangerous = log.status === QueryStatus.BLOCKED_INJECTION;
 
-    if (isBlocked) {
-      guardrailBlocks += 1;
-      if (guardrailFeed.length < 25) {
-        guardrailFeed.push({
+    if (isDangerous) {
+      dangerousFlags += 1;
+      if (flaggedDangerousFeed.length < 30) {
+        const userMeta = userMap.get(log.userId);
+        const { ruleReason, legacyText } = extractLegacyFlaggedText(
+          log.guardrailReason
+        );
+        const text = log.flaggedText ?? legacyText ?? "—";
+        flaggedDangerousFeed.push({
           id: log.id,
           createdAt: log.createdAt.toISOString(),
-          username: userNameById.get(log.userId) ?? "unknown",
-          status: log.status,
-          guardrailReason: log.guardrailReason ?? "Blocked by guardrail pipeline",
+          userId: log.userId,
+          username: userMeta?.username ?? "unknown",
+          userRole: userMeta?.role ?? Role.USER,
+          isUserBlocked: userMeta?.isBlocked ?? false,
+          ruleReason,
+          flaggedText: text,
           model: log.model,
           latencyMs: log.latencyMs,
         });
@@ -197,7 +242,7 @@ export async function GET() {
 
     const userStat = usageByUser.get(log.userId) ?? {
       validQueries: 0,
-      blockedAttempts: 0,
+      dangerousFlags: 0,
       promptTokens: 0,
       cachedTokens: 0,
       completionTokens: 0,
@@ -205,8 +250,8 @@ export async function GET() {
       estimatedCostUsd: 0,
     };
 
-    if (isBlocked) {
-      userStat.blockedAttempts += 1;
+    if (isDangerous) {
+      userStat.dangerousFlags += 1;
     } else if (
       log.status === QueryStatus.SUCCESS ||
       log.status === QueryStatus.NO_CONTEXT_FOUND
@@ -266,6 +311,7 @@ export async function GET() {
   });
 
   const newUsers24h = users.filter((u) => u.createdAt >= twentyFourHoursAgo).length;
+  const blockedUsers = users.filter((u) => u.isBlocked).length;
 
   const perUserBreakdown = users.map((u) => {
     const docStat = docsByUser.get(u.id) ?? {
@@ -275,7 +321,7 @@ export async function GET() {
     };
     const uStat = usageByUser.get(u.id) ?? {
       validQueries: 0,
-      blockedAttempts: 0,
+      dangerousFlags: 0,
       promptTokens: 0,
       cachedTokens: 0,
       completionTokens: 0,
@@ -290,11 +336,14 @@ export async function GET() {
       email: u.email,
       provider: u.provider,
       role: u.role,
+      isBlocked: u.isBlocked,
+      blockedAt: u.blockedAt ? u.blockedAt.toISOString() : null,
+      blockedReason: u.blockedReason,
       activeFiles: docStat.activeFiles,
       totalFiles: docStat.totalFiles,
       storageBytes: docStat.totalBytes,
       validQueries: uStat.validQueries,
-      blockedAttempts: uStat.blockedAttempts,
+      dangerousFlags: uStat.dangerousFlags,
       promptTokens: uStat.promptTokens,
       cachedTokens: uStat.cachedTokens,
       completionTokens: uStat.completionTokens,
@@ -310,6 +359,7 @@ export async function GET() {
     kpis: {
       totalUsers: users.length,
       nonAdminUsers: users.filter((u) => u.role !== Role.ADMIN).length,
+      blockedUsers,
       newUsers24h,
       totalFilesUploaded: documents.length,
       totalStorageBytes,
@@ -320,13 +370,13 @@ export async function GET() {
       totalCostUsd: Number(totalCostUsd.toFixed(6)),
       avgLatencyMs:
         latencySamples > 0 ? Math.round(totalLatencyMs / latencySamples) : 0,
-      guardrailBlocks,
+      dangerousFlags,
       totalQueries: validQueries,
     },
     hourlyDistribution: hourlyBuckets,
     peakWindowSummary,
     dayOfWeekDistribution,
     users: perUserBreakdown,
-    guardrailFeed,
+    flaggedDangerousFeed,
   });
 }

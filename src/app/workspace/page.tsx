@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getActiveUserStatus } from "@/lib/activeUser";
 import { WorkspaceClient } from "@/components/WorkspaceClient";
+import { BlockedAccountScreen } from "@/components/BlockedAccountScreen";
 
 export const metadata: Metadata = {
-  title: "Workspace — ContextLM Grounded Notebook",
+  title: "סביבת עבודה — ContextLM מחברת מבוססת מקורות",
   description:
-    "Upload up to 10 sources and ask strictly grounded questions with verified citations.",
+    "העלו עד 10 מקורות ושאלו שאלות מבוססות בלבד עם הפניות מאומתות.",
 };
 
 export default async function WorkspacePage() {
@@ -14,6 +16,11 @@ export default async function WorkspacePage() {
 
   if (!session?.user?.id) {
     redirect("/login");
+  }
+
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return <BlockedAccountScreen reason={userStatus.blockedReason} />;
   }
 
   return (

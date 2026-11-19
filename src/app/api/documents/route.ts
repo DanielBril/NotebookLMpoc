@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
 import {
   MAX_ACTIVE_CONTEXT_TOKENS,
@@ -43,6 +44,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return NextResponse.json(
+      {
+        error: "ACCOUNT_BLOCKED",
+        accountBlocked: true,
+        reason: userStatus.blockedReason,
+      },
+      { status: 403 }
+    );
+  }
+
   const docs = await prisma.document.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -82,6 +95,18 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userStatus = await getActiveUserStatus(session.user.id);
+  if (userStatus.isBlocked) {
+    return NextResponse.json(
+      {
+        error: "ACCOUNT_BLOCKED",
+        accountBlocked: true,
+        reason: userStatus.blockedReason,
+      },
+      { status: 403 }
+    );
   }
 
   try {

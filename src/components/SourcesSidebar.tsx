@@ -22,6 +22,7 @@ import {
   MAX_TOTAL_STORAGE_BYTES,
 } from "@/lib/constants";
 import { formatTokensCompact } from "@/lib/pricing";
+import { useLanguage } from "@/lib/i18n";
 
 export interface SourceDocumentItem {
   id: string;
@@ -76,22 +77,23 @@ function formatFileSize(bytes: number): string {
 function getFileTypeBadge(filename: string): {
   label: string;
   bg: string;
+  text: string;
   icon: "pdf" | "text" | "sheet";
 } {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".pdf")) {
-    return { label: "PDF", bg: "#c1dbe3", icon: "pdf" }; // --pale-sky
+    return { label: "PDF", bg: "#253237", text: "#e0fbfc", icon: "pdf" };
   }
   if (lower.endsWith(".md")) {
-    return { label: "MD", bg: "#c7dfc5", icon: "text" }; // --tea-green
+    return { label: "MD", bg: "#c2dfe3", text: "#253237", icon: "text" };
   }
   if (lower.endsWith(".txt")) {
-    return { label: "TXT", bg: "#c7dfc5", icon: "text" }; // --tea-green
+    return { label: "TXT", bg: "#e0fbfc", text: "#253237", icon: "text" };
   }
   if (lower.endsWith(".csv")) {
-    return { label: "CSV", bg: "#fce694", icon: "sheet" }; // --jasmine
+    return { label: "CSV", bg: "#9db4c0", text: "#253237", icon: "sheet" };
   }
-  return { label: "DOCX", bg: "#fce694", icon: "text" }; // --jasmine
+  return { label: "DOCX", bg: "#5c6b73", text: "#e0fbfc", icon: "text" };
 }
 
 export function SourcesSidebar({
@@ -110,6 +112,7 @@ export function SourcesSidebar({
   toastWarning,
   onDismissToast,
 }: SourcesSidebarProps) {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -129,17 +132,13 @@ export function SourcesSidebar({
     if (incoming.length === 0) return null;
 
     if (summary.count >= MAX_FILES_PER_USER) {
-      setLocalError(
-        "Maximum 10 sources reached. Delete a source to upload another."
-      );
+      setLocalError(t.sources.errMaxFiles);
       return null;
     }
 
     if (summary.count + incoming.length > MAX_FILES_PER_USER) {
       const remaining = MAX_FILES_PER_USER - summary.count;
-      setLocalError(
-        `You can upload at most ${remaining} more ${remaining === 1 ? "source" : "sources"} (max 10 total).`
-      );
+      setLocalError(t.sources.errRemainingFiles(remaining));
       return null;
     }
 
@@ -148,20 +147,16 @@ export function SourcesSidebar({
       const dotIdx = file.name.lastIndexOf(".");
       const ext = dotIdx >= 0 ? file.name.slice(dotIdx).toLowerCase() : "";
       if (!(ALLOWED_EXTENSIONS as readonly string[]).includes(ext)) {
-        setLocalError(
-          `"${file.name}" is not supported. Allowed types: PDF, TXT, MD, CSV, DOCX.`
-        );
+        setLocalError(t.sources.errUnsupportedType(file.name));
         return null;
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        setLocalError(`"${file.name}" exceeds the 10 MB per-file limit.`);
+        setLocalError(t.sources.errFileTooLarge(file.name));
         return null;
       }
       projectedBytes += file.size;
       if (projectedBytes > MAX_TOTAL_STORAGE_BYTES) {
-        setLocalError(
-          `Uploading "${file.name}" exceeds the 50 MB cumulative storage limit.`
-        );
+        setLocalError(t.sources.errTotalStorage(file.name));
         return null;
       }
     }
@@ -194,10 +189,11 @@ export function SourcesSidebar({
 
   async function handleCheckboxToggle(doc: SourceDocumentItem) {
     setLocalError(null);
-    if (!doc.isSelected && summary.activeTokens + doc.tokenCount > MAX_ACTIVE_CONTEXT_TOKENS) {
-      setLocalError(
-        `Selecting "${doc.filename}" exceeds the 150,000 active context token ceiling. Uncheck a large source first.`
-      );
+    if (
+      !doc.isSelected &&
+      summary.activeTokens + doc.tokenCount > MAX_ACTIVE_CONTEXT_TOKENS
+    ) {
+      setLocalError(t.sources.errTokenCeiling(doc.filename));
       return;
     }
 
@@ -222,28 +218,31 @@ export function SourcesSidebar({
   const activeAlert = localError || toastError;
 
   return (
-    <aside className="relative flex flex-col h-full bg-white border-l border-[#373737]/12 w-full lg:w-[360px] xl:w-[400px] shrink-0 overflow-hidden">
-      {/* Pale Sky Header Bar */}
-      <div className="bg-[#c1dbe3] px-4 py-3 flex items-center justify-between border-b border-[#373737]/12 shrink-0">
+    <aside className="relative flex flex-col h-full bg-white border-s border-[#9db4c0]/40 w-full lg:w-[360px] xl:w-[400px] shrink-0 overflow-hidden">
+      {/* Light-Blue Header Bar */}
+      <div className="bg-[#c2dfe3] px-4 py-3 flex items-center justify-between border-b border-[#9db4c0]/50 shrink-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold tracking-tight text-[#373737]">
-            Sources
+          <h2 className="text-sm font-semibold tracking-tight text-[#253237]">
+            {t.sources.title}
           </h2>
-          <span className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[11px] font-semibold text-[#373737] border border-[#373737]/10">
+          <span
+            dir="ltr"
+            className="rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#253237] border border-[#9db4c0]/60"
+          >
             {summary.count} / {MAX_FILES_PER_USER}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-[#373737]/75">
-            {formatTokensCompact(summary.activeTokens)} active tok
+          <span className="font-mono text-[11px] text-[#253237]/80">
+            {t.sources.activeTok(formatTokensCompact(summary.activeTokens))}
           </span>
           {onCollapse && (
             <button
               type="button"
               onClick={onCollapse}
-              title="Close Sources panel"
-              className="rounded-md p-1 text-[#373737]/70 hover:text-[#373737] hover:bg-white/40 transition-colors cursor-pointer"
+              title={t.sources.closePanel}
+              className="rounded-md p-1 text-[#253237]/70 hover:text-[#253237] hover:bg-white/50 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -253,8 +252,8 @@ export function SourcesSidebar({
 
       {/* Inline Toast Alerts */}
       {activeAlert && (
-        <div className="mx-3.5 mt-3 rounded-xl bg-[#fce694] px-3 py-2.5 text-xs font-medium text-[#373737] border border-[#373737]/25 flex items-start gap-2 shrink-0">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+        <div className="animate-toast-in mx-3.5 mt-3 rounded-xl bg-[#253237] px-3 py-2.5 text-xs font-medium text-[#e0fbfc] border border-[#5c6b73] flex items-start gap-2 shrink-0">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-[#c2dfe3]" />
           <span className="flex-1 leading-snug">{activeAlert}</span>
           <button
             type="button"
@@ -262,7 +261,7 @@ export function SourcesSidebar({
               setLocalError(null);
               onDismissToast();
             }}
-            className="text-[#373737]/70 hover:text-[#373737] cursor-pointer"
+            className="text-[#c2dfe3] hover:text-[#e0fbfc] cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -270,13 +269,13 @@ export function SourcesSidebar({
       )}
 
       {toastWarning && !activeAlert && (
-        <div className="mx-3.5 mt-3 rounded-xl bg-[#f6feaa] px-3 py-2.5 text-xs font-medium text-[#373737] border border-[#373737]/20 flex items-start gap-2 shrink-0">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+        <div className="animate-toast-in mx-3.5 mt-3 rounded-xl bg-[#e0fbfc] px-3 py-2.5 text-xs font-medium text-[#253237] border border-[#5c6b73]/45 flex items-start gap-2 shrink-0">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-[#5c6b73]" />
           <span className="flex-1 leading-snug">{toastWarning}</span>
           <button
             type="button"
             onClick={onDismissToast}
-            className="text-[#373737]/70 hover:text-[#373737] cursor-pointer"
+            className="text-[#5c6b73] hover:text-[#253237] cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -284,7 +283,7 @@ export function SourcesSidebar({
       )}
 
       {/* Upload Dropzone */}
-      <div className="p-3.5 border-b border-[#373737]/10 shrink-0">
+      <div className="p-3.5 border-b border-[#9db4c0]/30 shrink-0">
         <input
           ref={fileInputRef}
           id="source-file-input"
@@ -306,26 +305,26 @@ export function SourcesSidebar({
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          className={`rounded-xl border-[1.5px] border-dashed px-3.5 py-4 text-center transition-all ${
+          className={`rounded-xl border-[1.5px] border-dashed px-3.5 py-4 text-center transition-all duration-200 ${
             isAtFileCap
-              ? "border-[#373737]/25 bg-[#f7fafb] opacity-85"
+              ? "border-[#9db4c0]/50 bg-[#f2fafb] opacity-85"
               : isDragging
-                ? "border-[#373737] bg-[#c7dfc5]/55 scale-[1.01]"
-                : "border-[#373737]/60 bg-[#c7dfc5]/25 hover:bg-[#c7dfc5]/40"
+                ? "border-[#253237] bg-[#e0fbfc] scale-[1.015] shadow-md"
+                : "border-[#5c6b73]/55 bg-[#e0fbfc]/40 hover:bg-[#e0fbfc]/75 hover:border-[#253237]/70"
           }`}
         >
           {isAtFileCap ? (
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-[#373737]">
-                Maximum 10 sources reached.
+              <p className="text-xs font-semibold text-[#253237]">
+                {t.sources.maxReachedTitle}
               </p>
-              <p className="text-[11px] text-[#373737]/70">
-                Delete a source below to upload another.
+              <p className="text-[11px] text-[#5c6b73]">
+                {t.sources.maxReachedDesc}
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-[#373737] border border-[#373737]/12">
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#253237] border border-[#9db4c0]/55 shadow-xs">
                 {isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -333,11 +332,11 @@ export function SourcesSidebar({
                 )}
               </div>
               <div>
-                <p className="text-xs font-semibold text-[#373737]">
-                  {isUploading ? "Extracting & indexing text…" : "Drop files here or browse"}
+                <p className="text-xs font-semibold text-[#253237]">
+                  {isUploading ? t.sources.extracting : t.sources.dropOrBrowse}
                 </p>
-                <p className="text-[11px] text-[#373737]/65 mt-0.5">
-                  PDF, DOCX, TXT, MD, CSV • Max 10 MB each
+                <p className="text-[11px] text-[#5c6b73] mt-0.5">
+                  {t.sources.formatsHint}
                 </p>
               </div>
               <button
@@ -345,28 +344,26 @@ export function SourcesSidebar({
                 type="button"
                 disabled={isAtFileCap || isUploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-graphite mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-[#f6feaa] cursor-pointer"
+                className="btn-jet mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>Add Sources</span>
+                <span>{t.sources.addSources}</span>
               </button>
             </div>
           )}
         </div>
 
         {/* Storage & Active Context Summary Bar */}
-        <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#373737]/65 font-mono">
-          <span>
-            Storage: {formatFileSize(summary.totalSizeBytes)} / 50 MB
-          </span>
+        <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#5c6b73] font-mono">
+          <span>{t.sources.storageLabel(formatFileSize(summary.totalSizeBytes))}</span>
           <span>{storagePercent}%</span>
         </div>
-        <div className="mt-1 h-1.5 w-full rounded-full bg-[#373737]/10 overflow-hidden">
+        <div className="mt-1 h-1.5 w-full rounded-full bg-[#c2dfe3]/45 overflow-hidden">
           <div
-            className="h-full rounded-full transition-all duration-300"
+            className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
               width: `${Math.max(summary.totalSizeBytes > 0 ? 3 : 0, storagePercent)}%`,
-              backgroundColor: storagePercent > 85 ? "#fce694" : "#c7dfc5",
+              backgroundColor: storagePercent > 85 ? "#253237" : "#5c6b73",
             }}
           />
         </div>
@@ -379,21 +376,20 @@ export function SourcesSidebar({
             {[1, 2, 3].map((idx) => (
               <div
                 key={idx}
-                className="h-16 rounded-xl bg-[#f7fafb] border border-[#373737]/10 animate-pulse"
+                className="h-16 rounded-xl bg-[#e0fbfc]/45 border border-[#9db4c0]/35 animate-pulse"
               />
             ))}
           </div>
         ) : documents.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
-            <div className="h-10 w-10 rounded-xl bg-[#c1dbe3]/45 flex items-center justify-center text-[#373737] mb-3">
+          <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8 animate-fade-in">
+            <div className="h-10 w-10 rounded-xl bg-[#c2dfe3]/60 flex items-center justify-center text-[#253237] mb-3">
               <FileText className="h-5 w-5" />
             </div>
-            <p className="text-xs font-semibold text-[#373737]">
-              No sources uploaded yet
+            <p className="text-xs font-semibold text-[#253237]">
+              {t.sources.emptyTitle}
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-[#373737]/65">
-              Upload contracts, research papers, SOPs, or CSV tables. ContextLM
-              will answer strictly from your checked sources.
+            <p className="mt-1 text-[11px] leading-relaxed text-[#5c6b73]">
+              {t.sources.emptyDesc}
             </p>
           </div>
         ) : (
@@ -407,12 +403,12 @@ export function SourcesSidebar({
               <div
                 key={doc.id}
                 id={`source-card-${doc.id}`}
-                className={`group rounded-xl border p-3 transition-all ${
+                className={`interactive-card group rounded-xl border p-3 ${
                   isHighlighted
-                    ? "border-[#373737] bg-[#f6feaa]/55 source-highlight-pulse"
+                    ? "border-[#253237] bg-[#e0fbfc] source-highlight-pulse"
                     : doc.isSelected
-                      ? "border-[#373737]/18 bg-white hover:border-[#373737]/35 shadow-[0_1px_4px_rgba(55,55,55,0.04)]"
-                      : "border-[#373737]/10 bg-[#f7fafb] opacity-75 hover:opacity-100"
+                      ? "border-[#9db4c0]/60 bg-white hover:border-[#5c6b73] shadow-[0_1px_4px_rgba(37,50,55,0.04)]"
+                      : "border-[#9db4c0]/30 bg-[#f2fafb] opacity-75 hover:opacity-100"
                 }`}
               >
                 <div className="flex items-start gap-2.5">
@@ -421,17 +417,17 @@ export function SourcesSidebar({
                     type="button"
                     role="checkbox"
                     aria-checked={doc.isSelected}
-                    aria-label={`Include ${doc.filename} in context`}
+                    aria-label={t.sources.includeAria(doc.filename)}
                     disabled={isBusy}
                     onClick={() => void handleCheckboxToggle(doc)}
-                    className={`mt-0.5 h-4.5 w-4.5 shrink-0 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                    className={`mt-0.5 h-4.5 w-4.5 shrink-0 rounded-md border flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer ${
                       doc.isSelected
-                        ? "bg-[#373737] border-[#373737] text-[#f6feaa]"
-                        : "bg-white border-[#373737]/35 text-transparent hover:border-[#373737]"
+                        ? "bg-[#253237] border-[#253237] text-[#e0fbfc]"
+                        : "bg-white border-[#9db4c0] text-transparent hover:border-[#253237]"
                     }`}
                   >
                     {pendingToggleId === doc.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-[#c1dbe3]" />
+                      <Loader2 className="h-3 w-3 animate-spin text-[#c2dfe3]" />
                     ) : (
                       <Check className="h-3 w-3 stroke-[3]" />
                     )}
@@ -441,8 +437,8 @@ export function SourcesSidebar({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span
-                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-[#373737] shrink-0"
-                        style={{ backgroundColor: badge.bg }}
+                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide shrink-0"
+                        style={{ backgroundColor: badge.bg, color: badge.text }}
                       >
                         {badge.icon === "sheet" ? (
                           <FileSpreadsheet className="h-2.5 w-2.5" />
@@ -455,19 +451,21 @@ export function SourcesSidebar({
                       </span>
                       <button
                         type="button"
-                        onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
+                        onClick={() =>
+                          onOpenPreview(doc.id, doc.previewSnippet)
+                        }
                         title={doc.filename}
-                        className="text-left text-xs font-semibold text-[#373737] truncate hover:underline cursor-pointer"
+                        className="text-start text-xs font-semibold text-[#253237] truncate hover:underline cursor-pointer"
                       >
                         {doc.filename}
                       </button>
                     </div>
 
-                    <div className="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-[#373737]/65">
-                      <span className="rounded bg-[#f7fafb] px-1.5 py-0.5 border border-[#373737]/10">
-                        {formatTokensCompact(doc.tokenCount)} tok
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-[#5c6b73]">
+                      <span className="rounded bg-[#f2fafb] px-1.5 py-0.5 border border-[#9db4c0]/40 text-[#253237]">
+                        {formatTokensCompact(doc.tokenCount)} {t.sources.tokUnit}
                       </span>
-                      <span>{formatFileSize(doc.sizeBytes)}</span>
+                      <span dir="ltr">{formatFileSize(doc.sizeBytes)}</span>
                     </div>
                   </div>
 
@@ -479,33 +477,35 @@ export function SourcesSidebar({
                           type="button"
                           disabled={deletingId === doc.id}
                           onClick={() => void handleConfirmDelete(doc.id)}
-                          className="rounded-md bg-[#373737] px-2 py-1 text-[10px] font-semibold text-[#f6feaa] hover:bg-[#242424] cursor-pointer"
+                          className="rounded-md bg-[#253237] px-2 py-1 text-[10px] font-semibold text-[#e0fbfc] hover:bg-[#1a2428] cursor-pointer"
                         >
-                          {deletingId === doc.id ? "…" : "Delete"}
+                          {deletingId === doc.id ? "…" : t.sources.deleteBtn}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
-                          className="rounded-md bg-[#f7fafb] px-1.5 py-1 text-[10px] font-medium text-[#373737] border border-[#373737]/15 cursor-pointer"
+                          className="rounded-md bg-[#f2fafb] px-1.5 py-1 text-[10px] font-medium text-[#253237] border border-[#9db4c0]/50 cursor-pointer"
                         >
-                          Cancel
+                          {t.sources.cancelBtn}
                         </button>
                       </div>
                     ) : (
                       <>
                         <button
                           type="button"
-                          onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
-                          title="Preview extracted text"
-                          className="rounded-md p-1 text-[#373737]/50 hover:text-[#373737] hover:bg-[#c1dbe3]/35 transition-colors cursor-pointer"
+                          onClick={() =>
+                            onOpenPreview(doc.id, doc.previewSnippet)
+                          }
+                          title={t.sources.previewTitle}
+                          className="rounded-md p-1 text-[#5c6b73] hover:text-[#253237] hover:bg-[#c2dfe3]/50 transition-colors cursor-pointer"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(doc.id)}
-                          title="Delete source"
-                          className="rounded-md p-1 text-[#373737]/50 hover:text-[#373737] hover:bg-[#fce694] transition-colors cursor-pointer"
+                          title={t.sources.deleteTitle}
+                          className="rounded-md p-1 text-[#5c6b73] hover:text-[#253237] hover:bg-[#e0fbfc] transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -519,31 +519,31 @@ export function SourcesSidebar({
         )}
       </div>
 
-      {/* Quick Snippet Preview Drawer (overlays bottom half of sidebar cleanly) */}
+      {/* Quick Snippet Preview Drawer */}
       {previewDoc && (
-        <div className="absolute inset-x-0 bottom-0 z-20 max-h-[60%] flex flex-col bg-white border-t-2 border-[#373737] shadow-[0_-12px_32px_rgba(55,55,55,0.16)]">
-          <div className="flex items-center justify-between gap-2 bg-[#c7dfc5] px-3.5 py-2.5 border-b border-[#373737]/12">
+        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[60%] flex flex-col bg-white border-t-2 border-[#253237] shadow-[0_-14px_34px_rgba(37,50,55,0.18)]">
+          <div className="flex items-center justify-between gap-2 bg-[#c2dfe3] px-3.5 py-2.5 border-b border-[#9db4c0]/50">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#373737]/70">
-                Verified Source Preview
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">
+                {t.sources.verifiedPreviewLabel}
               </p>
-              <p className="text-xs font-semibold text-[#373737] truncate">
+              <p className="text-xs font-semibold text-[#253237] truncate">
                 {previewDoc.filename}
               </p>
             </div>
             <button
               type="button"
               onClick={onClosePreview}
-              className="rounded-md p-1 text-[#373737] hover:bg-white/50 cursor-pointer"
+              className="rounded-md p-1 text-[#253237] hover:bg-white/60 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="p-3.5 overflow-y-auto text-xs leading-relaxed text-[#373737]/85 font-mono whitespace-pre-wrap bg-[#f7fafb]">
+          <div className="p-3.5 overflow-y-auto text-xs leading-relaxed text-[#253237]/90 font-mono whitespace-pre-wrap bg-[#f2fafb]">
             {previewDoc.loading ? (
-              <div className="flex items-center gap-2 py-4 text-[#373737]/60">
+              <div className="flex items-center gap-2 py-4 text-[#5c6b73]">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading extracted source snippet…</span>
+                <span>{t.sources.loadingPreview}</span>
               </div>
             ) : (
               previewDoc.excerpt

@@ -29,6 +29,9 @@ model User {
   image         String?
   role          Role       @default(USER)
   provider      String     @default("credentials") // "credentials" | "google"
+  isBlocked     Boolean    @default(false)
+  blockedAt     DateTime?
+  blockedReason String?
   createdAt     DateTime   @default(now())
   lastActiveAt  DateTime   @default(now())
 
@@ -76,7 +79,8 @@ model UsageLog {
   estimatedCostUsd Float       @default(0)
   latencyMs        Int         @default(0)
   status           QueryStatus @default(SUCCESS)
-  guardrailReason  String?     // Populated if blocked by injection/scope filter
+  guardrailReason  String?     // Rule / reason populated if blocked
+  flaggedText      String?     @db.Text // ONLY populated for texts flagged as dangerous (BLOCKED_INJECTION)
   hourOfDay        Int         // 0-23 (UTC or configured TZ) for fast peak-time aggregation
   dayOfWeek        Int         // 0-6 (Sun-Sat)
   createdAt        DateTime    @default(now())

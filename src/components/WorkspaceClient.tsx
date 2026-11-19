@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { BlockedAccountScreen } from "@/components/BlockedAccountScreen";
 import {
   ChatPanel,
   type ChatMessageItem,
@@ -13,6 +14,7 @@ import {
   type SourceDocumentItem,
   type SourcesSummary,
 } from "@/components/SourcesSidebar";
+import { useLanguage } from "@/lib/i18n";
 import {
   MAX_ACTIVE_CONTEXT_TOKENS,
   MAX_FILES_PER_USER,
@@ -62,6 +64,7 @@ function recomputeSummary(docs: SourceDocumentItem[]): SourcesSummary {
 }
 
 export function WorkspaceClient({ user }: WorkspaceClientProps) {
+  const { lang, t } = useLanguage();
   const [documents, setDocuments] = useState<SourceDocumentItem[]>([]);
   const [summary, setSummary] = useState<SourcesSummary>(EMPTY_SUMMARY);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
@@ -71,6 +74,10 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   const [toastError, setToastError] = useState<string | null>(null);
   const [toastWarning, setToastWarning] = useState<string | null>(null);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
+  const [blockedState, setBlockedState] = useState<{
+    blocked: boolean;
+    reason: string | null;
+  }>({ blocked: false, reason: null });
   const [previewDoc, setPreviewDoc] = useState<{
     id: string;
     filename: string;
@@ -96,6 +103,18 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
         if (cancelled) return;
 
+        if (docsRes.status === 403 || chatRes.status === 403) {
+          const errRes = docsRes.status === 403 ? docsRes : chatRes;
+          const errJson = (await errRes.json().catch(() => ({}))) as {
+            accountBlocked?: boolean;
+            reason?: string | null;
+          };
+          if (errJson.accountBlocked) {
+            setBlockedState({ blocked: true, reason: errJson.reason ?? null });
+            return;
+          }
+        }
+
         if (docsRes.ok) {
           const docsJson = (await docsRes.json()) as {
             documents: SourceDocumentItem[];
@@ -113,7 +132,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
         }
       } catch {
         if (!cancelled) {
-          setToastError("Unable to load workspace data. Please refresh.");
+          setToastError(t.chat.errLoadWorkspace);
         }
       } finally {
         if (!cancelled) {
@@ -126,7 +145,11 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t.chat.errLoadWorkspace]);
+
+  if (blockedState.blocked) {
+    return <BlockedAccountScreen reason={blockedState.reason} />;
+  }
 
   async function handleUploadFiles(files: File[]) {
     setToastError(null);
@@ -143,13 +166,20 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
     const data = (await res.json()) as {
       error?: string;
+      accountBlocked?: boolean;
+      reason?: string | null;
       documents?: SourceDocumentItem[];
       warnings?: string[];
       summary?: SourcesSummary;
     };
 
+    if (res.status === 403 && data.accountBlocked) {
+      setBlockedState({ blocked: true, reason: data.reason ?? null });
+      return;
+    }
+
     if (!res.ok) {
-      setToastError(data.error || "Upload failed.");
+      setToastError(data.error || t.chat.errUploadFailed);
       return;
     }
 
@@ -172,9 +202,19 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
       body: JSON.stringify({ isSelected: nextSelected }),
     });
 
-    const data = (await res.json()) as { error?: string };
+    const data = (await res.json()) as {
+      error?: string;
+      accountBlocked?: boolean;
+      reason?: string | null;
+    };
+
+    if (res.status === 403 && data.accountBlocked) {
+      setBlockedState({ blocked: true, reason: data.reason ?? null });
+      return;
+    }
+
     if (!res.ok) {
-      setToastError(data.error || "Failed to update source selection.");
+      setToastError(data.error || t.chat.errToggleFailed);
       return;
     }
 
@@ -194,8 +234,16 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     });
 
     if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setToastError(data.error || "Failed to delete document.");
+      const data = (await res.json()) as {
+        error?: string;
+        accountBlocked?: boolean;
+        reason?: string | null;
+      };
+      if (res.status === 403 && data.accountBlocked) {
+        setBlockedState({ blocked: true, reason: data.reason ?? null });
+        return;
+      }
+      setToastError(data.error || t.chat.errDeleteFailed);
       return;
     }
 
@@ -224,7 +272,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     const docMeta = documents.find((d) => d.id === docId);
     setPreviewDoc({
       id: docId,
-      filename: docMeta?.filename ?? "Source Document",
+      filename: docMeta?.filename ?? t.sources.sourceDocumentFallback,
       excerpt: fallbackSnippet || docMeta?.previewSnippet || "",
       tokenCount: docMeta?.tokenCount ?? 0,
       loading: true,
@@ -232,6 +280,16 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
     try {
       const res = await fetch(`/api/documents/${docId}`, { cache: "no-store" });
+      if (res.status === 403) {
+        const errJson = (await res.json().catch(() => ({}))) as {
+          accountBlocked?: boolean;
+          reason?: string | null;
+        };
+        if (errJson.accountBlocked) {
+          setBlockedState({ blocked: true, reason: errJson.reason ?? null });
+          return;
+        }
+      }
       if (res.ok) {
         const json = (await res.json()) as {
           document: { filename: string; excerpt: string; tokenCount: number };
@@ -253,6 +311,16 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
   async function handleClearChat() {
     const res = await fetch("/api/chat", { method: "DELETE" });
+    if (res.status === 403) {
+      const errJson = (await res.json().catch(() => ({}))) as {
+        accountBlocked?: boolean;
+        reason?: string | null;
+      };
+      if (errJson.accountBlocked) {
+        setBlockedState({ blocked: true, reason: errJson.reason ?? null });
+        return;
+      }
+    }
     if (res.ok) {
       setMessages([]);
     }
@@ -280,19 +348,24 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, lang }),
       });
 
       const contentType = res.headers.get("content-type") || "";
 
-      // Guardrail block or JSON error (e.g., HTTP 400 Layer 1/4 block or 503 missing API key)
       if (!res.ok || contentType.includes("application/json")) {
         const json = (await res.json()) as {
           blocked?: boolean;
-          reason?: string;
+          accountBlocked?: boolean;
+          reason?: string | null;
           error?: string;
           message?: ChatMessageItem;
         };
+
+        if (res.status === 403 && json.accountBlocked) {
+          setBlockedState({ blocked: true, reason: json.reason ?? null });
+          return;
+        }
 
         if (json.blocked && json.message) {
           setMessages((prev) =>
@@ -306,9 +379,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
                     ...m,
                     role: "system_alert",
                     content:
-                      json.error ||
-                      json.reason ||
-                      "Request could not be completed.",
+                      json.error || json.reason || t.chat.errRequestFailed,
                     isStreaming: false,
                   }
                 : m
@@ -318,7 +389,6 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
         return;
       }
 
-      // Parse SSE stream
       const reader = res.body?.getReader();
       if (!reader) {
         throw new Error("Empty streaming response body.");
@@ -375,9 +445,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
                     ? {
                         ...m,
                         role: "system_alert",
-                        content:
-                          payload.content ||
-                          "Blocked by output security guardrail.",
+                        content: payload.content || t.chat.errOutputGuard,
                         isStreaming: false,
                       }
                     : m
@@ -404,9 +472,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
                     ? {
                         ...m,
                         role: "system_alert",
-                        content:
-                          payload.error ||
-                          "An error occurred while streaming the response.",
+                        content: payload.error || t.chat.errStreamError,
                         isStreaming: false,
                       }
                     : m
@@ -425,7 +491,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
             ? {
                 ...m,
                 role: "system_alert",
-                content: "Connection interrupted while waiting for grounded response.",
+                content: t.chat.errConnectionInterrupted,
                 isStreaming: false,
               }
             : m
@@ -437,7 +503,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#f7fafb]">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#f2fafb]">
       <Navbar
         mode="workspace"
         user={user}
@@ -455,12 +521,14 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
           isSending={isSending}
           onSendQuery={handleSendQuery}
           onClearChat={handleClearChat}
-          onCitationClick={(docId, snippet) => void handleOpenPreview(docId, snippet)}
+          onCitationClick={(docId, snippet) =>
+            void handleOpenPreview(docId, snippet)
+          }
         />
 
-        {/* Desktop collapsible & Mobile overlay right sidebar */}
+        {/* Desktop collapsible & Mobile overlay sidebar */}
         {sidebarOpen && (
-          <div className="fixed inset-y-0 right-0 top-[59px] z-20 w-full max-w-[380px] lg:static lg:inset-auto lg:w-auto lg:max-w-none shadow-2xl lg:shadow-none">
+          <div className="fixed inset-y-0 end-0 top-[59px] z-20 w-full max-w-[380px] lg:static lg:inset-auto lg:w-auto lg:max-w-none shadow-2xl lg:shadow-none animate-fade-in">
             <SourcesSidebar
               documents={documents}
               summary={summary}
@@ -468,7 +536,9 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
               highlightedDocId={highlightedDocId}
               previewDoc={previewDoc}
               onClosePreview={() => setPreviewDoc(null)}
-              onOpenPreview={(docId, snippet) => void handleOpenPreview(docId, snippet)}
+              onOpenPreview={(docId, snippet) =>
+                void handleOpenPreview(docId, snippet)
+              }
               onUploadFiles={handleUploadFiles}
               onToggleSelect={handleToggleSelect}
               onDeleteDoc={handleDeleteDoc}

@@ -15,11 +15,14 @@ import {
 } from "lucide-react";
 import { AuthShowcasePane } from "@/components/AuthShowcasePane";
 import { BrandLogo } from "@/components/BrandLogo";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/lib/i18n";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,24}$/;
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -35,24 +38,22 @@ export default function SignupPage() {
     const trimmedName = name.trim();
 
     if (!USERNAME_PATTERN.test(trimmedUser)) {
-      setError(
-        "Username must be 3–24 characters using only letters, numbers, and underscores."
-      );
+      setError(t.auth.errUsernamePattern);
       return;
     }
 
     if (!trimmedName) {
-      setError("Please enter your display name.");
+      setError(t.auth.errDisplayName);
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+      setError(t.auth.errPasswordLength);
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t.auth.errPasswordMismatch);
       return;
     }
 
@@ -71,12 +72,11 @@ export default function SignupPage() {
 
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
-        setError(data.error || "Unable to create account.");
+        setError(data.error || t.auth.errUnableCreate);
         setIsSubmitting(false);
         return;
       }
 
-      // Auto-sign-in right after registration
       const loginRes = await signIn("credentials", {
         username: trimmedUser,
         password,
@@ -91,37 +91,42 @@ export default function SignupPage() {
       router.push("/workspace");
       router.refresh();
     } catch {
-      setError("Network error while creating your account. Please try again.");
+      setError(t.auth.errNetworkSignup);
       setIsSubmitting(false);
     }
   }
 
   return (
-    <main className="min-h-screen flex bg-[#f7fafb]">
+    <main className="min-h-screen flex bg-[#f2fafb]">
       <AuthShowcasePane />
 
-      <section className="flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
-        <div className="w-full max-w-[430px]">
+      <section className="relative flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
+        {/* Top-End Language Switcher */}
+        <div className="absolute top-5 end-5 sm:top-6 sm:end-6 z-20">
+          <LanguageToggle variant="light" id="signup-lang-toggle" />
+        </div>
+
+        <div className="w-full max-w-[430px] animate-fade-in-up">
           <div className="mb-8 lg:hidden">
             <BrandLogo size={32} variant="dark" showSubtitle />
           </div>
 
-          <div className="rounded-2xl bg-white p-7 sm:p-8 border border-[#373737]/12 shadow-[0_8px_30px_rgba(55,55,55,0.06)]">
+          <div className="rounded-2xl bg-white p-7 sm:p-8 border border-[#9db4c0]/45 shadow-[0_14px_38px_-14px_rgba(37,50,55,0.14)]">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#373737]">
-                Create your account
+              <h2 className="text-2xl font-semibold tracking-tight text-[#253237]">
+                {t.auth.signupTitle}
               </h2>
-              <p className="mt-1.5 text-sm text-[#373737]/65">
-                Start uploading up to 10 grounded sources in seconds.
+              <p className="mt-1.5 text-sm text-[#5c6b73]">
+                {t.auth.signupSubtitle}
               </p>
             </div>
 
             {error && (
               <div
                 role="alert"
-                className="mb-5 flex items-start gap-2.5 rounded-xl bg-[#fce694] px-3.5 py-3 text-xs font-medium text-[#373737] border border-[#373737]/25"
+                className="animate-toast-in mb-5 flex items-start gap-2.5 rounded-xl bg-[#e0fbfc] px-3.5 py-3 text-xs font-medium text-[#253237] border-[1.5px] border-[#253237]/45"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#253237]" />
                 <span>{error}</span>
               </div>
             )}
@@ -130,12 +135,12 @@ export default function SignupPage() {
               <div>
                 <label
                   htmlFor="signup-username"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Username
+                  {t.auth.username}
                 </label>
                 <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <User className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="signup-username"
                     name="username"
@@ -145,8 +150,8 @@ export default function SignupPage() {
                     maxLength={24}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="3–24 letters, numbers, or _"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.usernameSignupPlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -154,12 +159,12 @@ export default function SignupPage() {
               <div>
                 <label
                   htmlFor="signup-name"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Display Name
+                  {t.auth.displayName}
                 </label>
                 <div className="relative">
-                  <BadgeCheck className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <BadgeCheck className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="signup-name"
                     name="name"
@@ -168,8 +173,8 @@ export default function SignupPage() {
                     maxLength={60}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Maya Patel"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.displayNamePlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -177,12 +182,12 @@ export default function SignupPage() {
               <div>
                 <label
                   htmlFor="signup-password"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Password
+                  {t.auth.password}
                 </label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <Lock className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="signup-password"
                     name="password"
@@ -191,8 +196,8 @@ export default function SignupPage() {
                     minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 characters"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.passwordMinPlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -200,12 +205,12 @@ export default function SignupPage() {
               <div>
                 <label
                   htmlFor="signup-confirm-password"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Confirm Password
+                  {t.auth.confirmPassword}
                 </label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <Lock className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="signup-confirm-password"
                     name="confirmPassword"
@@ -214,8 +219,8 @@ export default function SignupPage() {
                     minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter your password"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.confirmPasswordPlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -224,31 +229,31 @@ export default function SignupPage() {
                 id="signup-submit-btn"
                 type="submit"
                 disabled={isSubmitting}
-                className="btn-graphite w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#f6feaa] cursor-pointer"
+                className="btn-jet w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Creating account…</span>
+                    <span>{t.auth.creatingAccount}</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign Up &amp; Open Notebook</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <span>{t.auth.signUpAndOpen}</span>
+                    <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                   </>
                 )}
               </button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-[#373737]/10 flex items-center justify-between text-xs">
-              <span className="text-[#373737]/65">Already have an account?</span>
+            <div className="mt-6 pt-5 border-t border-[#9db4c0]/30 flex items-center justify-between text-xs">
+              <span className="text-[#5c6b73]">{t.auth.alreadyHaveAccount}</span>
               <Link
                 id="goto-login-link"
                 href="/login"
-                className="inline-flex items-center gap-1 font-semibold text-[#373737] hover:underline"
+                className="inline-flex items-center gap-1 font-semibold text-[#253237] hover:underline"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Sign In</span>
+                <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+                <span>{t.auth.signIn}</span>
               </Link>
             </div>
           </div>

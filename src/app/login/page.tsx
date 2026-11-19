@@ -1,28 +1,55 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Loader2, Lock, User } from "lucide-react";
 import { AuthShowcasePane } from "@/components/AuthShowcasePane";
 import { BrandLogo } from "@/components/BrandLogo";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/lib/i18n";
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<
+    | null
+    | "missing"
+    | "invalid"
+    | "blocked"
+    | "network"
+    | "google"
+  >(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const effectiveErrorKey =
+    errorKey ?? (searchParams.get("error") === "AccountBlocked" ? "blocked" : null);
+
+  const errorMessage =
+    effectiveErrorKey === "missing"
+      ? t.auth.errMissingCreds
+      : effectiveErrorKey === "invalid"
+        ? t.auth.errInvalidCreds
+        : effectiveErrorKey === "blocked"
+          ? t.auth.errAccountBlocked
+          : effectiveErrorKey === "network"
+            ? t.auth.errNetworkLogin
+            : effectiveErrorKey === "google"
+              ? t.auth.errGoogleNotConfigured
+              : null;
+
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
+    setErrorKey(null);
 
     const trimmedUser = username.trim();
     if (!trimmedUser || !password) {
-      setError("Please enter both your username and password.");
+      setErrorKey("missing");
       return;
     }
 
@@ -35,12 +62,15 @@ export default function LoginPage() {
       });
 
       if (!result || result.error) {
-        setError("Invalid username or password. Please try again.");
+        if (result?.code === "account_blocked") {
+          setErrorKey("blocked");
+        } else {
+          setErrorKey("invalid");
+        }
         setIsSubmitting(false);
         return;
       }
 
-      // Fetch live session to route ADMIN directly to /admin and USER to /workspace
       const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
       const sessionData = (await sessionRes.json()) as {
         user?: { role?: string };
@@ -51,51 +81,54 @@ export default function LoginPage() {
       router.push(destination);
       router.refresh();
     } catch {
-      setError("Network error while signing in. Please try again.");
+      setErrorKey("network");
       setIsSubmitting(false);
     }
   }
 
   async function handleGoogleSignIn() {
-    setError(null);
+    setErrorKey(null);
     setIsGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl: "/workspace" });
     } catch {
-      setError(
-        "Google OAuth is not configured on this instance. Use username/password or configure GOOGLE_CLIENT_ID."
-      );
+      setErrorKey("google");
       setIsGoogleLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen flex bg-[#f7fafb]">
+    <main className="min-h-screen flex bg-[#f2fafb]">
       <AuthShowcasePane />
 
-      <section className="flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
-        <div className="w-full max-w-[420px]">
+      <section className="relative flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
+        {/* Top-End Language Switcher */}
+        <div className="absolute top-5 end-5 sm:top-6 sm:end-6 z-20">
+          <LanguageToggle variant="light" id="login-lang-toggle" />
+        </div>
+
+        <div className="w-full max-w-[420px] animate-fade-in-up">
           <div className="mb-8 lg:hidden">
             <BrandLogo size={32} variant="dark" showSubtitle />
           </div>
 
-          <div className="rounded-2xl bg-white p-7 sm:p-8 border border-[#373737]/12 shadow-[0_8px_30px_rgba(55,55,55,0.06)]">
+          <div className="rounded-2xl bg-white p-7 sm:p-8 border border-[#9db4c0]/45 shadow-[0_14px_38px_-14px_rgba(37,50,55,0.14)]">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#373737]">
-                Sign in to ContextLM
+              <h2 className="text-2xl font-semibold tracking-tight text-[#253237]">
+                {t.auth.loginTitle}
               </h2>
-              <p className="mt-1.5 text-sm text-[#373737]/65">
-                Access your grounded document notebook or telemetry portal.
+              <p className="mt-1.5 text-sm text-[#5c6b73]">
+                {t.auth.loginSubtitle}
               </p>
             </div>
 
-            {error && (
+            {errorMessage && (
               <div
                 role="alert"
-                className="mb-5 flex items-start gap-2.5 rounded-xl bg-[#fce694] px-3.5 py-3 text-xs font-medium text-[#373737] border border-[#373737]/25"
+                className="animate-toast-in mb-5 flex items-start gap-2.5 rounded-xl bg-[#e0fbfc] px-3.5 py-3 text-xs font-medium text-[#253237] border-[1.5px] border-[#253237]/45"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{error}</span>
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#253237]" />
+                <span>{errorMessage}</span>
               </div>
             )}
 
@@ -104,7 +137,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isSubmitting}
-              className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-[#373737] border border-[#373737]/20 hover:bg-[#f7fafb] hover:border-[#373737]/35 transition-colors disabled:opacity-50 cursor-pointer"
+              className="interactive-chip w-full flex items-center justify-center gap-2.5 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-[#253237] border border-[#9db4c0]/70 hover:bg-[#e0fbfc]/45 hover:border-[#5c6b73] disabled:opacity-50 cursor-pointer"
             >
               {isGoogleLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -128,27 +161,27 @@ export default function LoginPage() {
                   />
                 </svg>
               )}
-              <span>Continue with Google</span>
+              <span>{t.auth.continueWithGoogle}</span>
             </button>
 
             <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[#373737]/12" />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-[#373737]/50">
-                Or with credentials
+              <div className="h-px flex-1 bg-[#9db4c0]/40" />
+              <span className="text-[11px] font-medium text-[#5c6b73]">
+                {t.auth.orWithCredentials}
               </span>
-              <div className="h-px flex-1 bg-[#373737]/12" />
+              <div className="h-px flex-1 bg-[#9db4c0]/40" />
             </div>
 
             <form onSubmit={handleCredentialsSubmit} className="space-y-4">
               <div>
                 <label
                   htmlFor="login-username"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Username
+                  {t.auth.username}
                 </label>
                 <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <User className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="login-username"
                     name="username"
@@ -157,8 +190,8 @@ export default function LoginPage() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. alex_chen or admin"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.usernamePlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -166,12 +199,12 @@ export default function LoginPage() {
               <div>
                 <label
                   htmlFor="login-password"
-                  className="block text-xs font-semibold text-[#373737] mb-1.5"
+                  className="block text-xs font-semibold text-[#253237] mb-1.5"
                 >
-                  Password
+                  {t.auth.password}
                 </label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#373737]/45" />
+                  <Lock className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5c6b73]" />
                   <input
                     id="login-password"
                     name="password"
@@ -180,8 +213,8 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full rounded-xl bg-[#f7fafb] pl-9 pr-3.5 py-2.5 text-sm text-[#373737] placeholder:text-[#373737]/40 border border-[#373737]/15 focus:outline-none focus:border-[#373737] focus:bg-white transition-colors"
+                    placeholder={t.auth.passwordPlaceholder}
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -190,36 +223,44 @@ export default function LoginPage() {
                 id="login-submit-btn"
                 type="submit"
                 disabled={isSubmitting || isGoogleLoading}
-                className="btn-graphite w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#f6feaa] cursor-pointer"
+                className="btn-jet w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Signing in…</span>
+                    <span>{t.auth.signingIn}</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <span>{t.auth.signIn}</span>
+                    <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                   </>
                 )}
               </button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-[#373737]/10 flex items-center justify-between text-xs">
-              <span className="text-[#373737]/65">New to ContextLM?</span>
+            <div className="mt-6 pt-5 border-t border-[#9db4c0]/30 flex items-center justify-between text-xs">
+              <span className="text-[#5c6b73]">{t.auth.newToContextLm}</span>
               <Link
                 id="goto-signup-link"
                 href="/signup"
-                className="inline-flex items-center gap-1 rounded-lg bg-[#c7dfc5]/60 hover:bg-[#c7dfc5] px-3 py-1.5 font-semibold text-[#373737] transition-colors"
+                className="interactive-chip inline-flex items-center gap-1 rounded-lg bg-[#c2dfe3]/65 hover:bg-[#c2dfe3] px-3 py-1.5 font-semibold text-[#253237]"
               >
-                <span>Create Account</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <span>{t.auth.createAccount}</span>
+                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
               </Link>
             </div>
           </div>
         </div>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#f2fafb]" />}>
+      <LoginFormContent />
+    </Suspense>
   );
 }
