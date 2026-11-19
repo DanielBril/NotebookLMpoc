@@ -1,0 +1,556 @@
+"use client";
+
+import { useRef, useState, type DragEvent } from "react";
+import {
+  AlertCircle,
+  Check,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  FileType2,
+  Loader2,
+  Plus,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import {
+  ALLOWED_EXTENSIONS,
+  MAX_ACTIVE_CONTEXT_TOKENS,
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILES_PER_USER,
+  MAX_TOTAL_STORAGE_BYTES,
+} from "@/lib/constants";
+import { formatTokensCompact } from "@/lib/pricing";
+
+export interface SourceDocumentItem {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  tokenCount: number;
+  isSelected: boolean;
+  createdAt: string;
+  previewSnippet: string;
+}
+
+export interface SourcesSummary {
+  count: number;
+  activeCount: number;
+  maxFiles: number;
+  totalSizeBytes: number;
+  maxTotalSizeBytes: number;
+  activeTokens: number;
+  maxActiveTokens: number;
+}
+
+interface SourcesSidebarProps {
+  documents: SourceDocumentItem[];
+  summary: SourcesSummary;
+  isLoading: boolean;
+  highlightedDocId: string | null;
+  previewDoc: {
+    id: string;
+    filename: string;
+    excerpt: string;
+    tokenCount: number;
+    loading: boolean;
+  } | null;
+  onClosePreview: () => void;
+  onOpenPreview: (docId: string, fallbackSnippet?: string) => void;
+  onUploadFiles: (files: File[]) => Promise<void>;
+  onToggleSelect: (docId: string, nextSelected: boolean) => Promise<void>;
+  onDeleteDoc: (docId: string) => Promise<void>;
+  onCollapse?: () => void;
+  toastError: string | null;
+  toastWarning: string | null;
+  onDismissToast: () => void;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getFileTypeBadge(filename: string): {
+  label: string;
+  bg: string;
+  icon: "pdf" | "text" | "sheet";
+} {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".pdf")) {
+    return { label: "PDF", bg: "#c1dbe3", icon: "pdf" }; // --pale-sky
+  }
+  if (lower.endsWith(".md")) {
+    return { label: "MD", bg: "#c7dfc5", icon: "text" }; // --tea-green
+  }
+  if (lower.endsWith(".txt")) {
+    return { label: "TXT", bg: "#c7dfc5", icon: "text" }; // --tea-green
+  }
+  if (lower.endsWith(".csv")) {
+    return { label: "CSV", bg: "#fce694", icon: "sheet" }; // --jasmine
+  }
+  return { label: "DOCX", bg: "#fce694", icon: "text" }; // --jasmine
+}
+
+export function SourcesSidebar({
+  documents,
+  summary,
+  isLoading,
+  highlightedDocId,
+  previewDoc,
+  onClosePreview,
+  onOpenPreview,
+  onUploadFiles,
+  onToggleSelect,
+  onDeleteDoc,
+  onCollapse,
+  toastError,
+  toastWarning,
+  onDismissToast,
+}: SourcesSidebarProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const isAtFileCap = summary.count >= MAX_FILES_PER_USER;
+  const storagePercent = Math.min(
+    100,
+    Math.round((summary.totalSizeBytes / MAX_TOTAL_STORAGE_BYTES) * 100)
+  );
+
+  function validateClientFiles(incoming: File[]): File[] | null {
+    setLocalError(null);
+    if (incoming.length === 0) return null;
+
+    if (summary.count >= MAX_FILES_PER_USER) {
+      setLocalError(
+        "Maximum 10 sources reached. Delete a source to upload another."
+      );
+      return null;
+    }
+
+    if (summary.count + incoming.length > MAX_FILES_PER_USER) {
+      const remaining = MAX_FILES_PER_USER - summary.count;
+      setLocalError(
+        `You can upload at most ${remaining} more ${remaining === 1 ? "source" : "sources"} (max 10 total).`
+      );
+      return null;
+    }
+
+    let projectedBytes = summary.totalSizeBytes;
+    for (const file of incoming) {
+      const dotIdx = file.name.lastIndexOf(".");
+      const ext = dotIdx >= 0 ? file.name.slice(dotIdx).toLowerCase() : "";
+      if (!(ALLOWED_EXTENSIONS as readonly string[]).includes(ext)) {
+        setLocalError(
+          `"${file.name}" is not supported. Allowed types: PDF, TXT, MD, CSV, DOCX.`
+        );
+        return null;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setLocalError(`"${file.name}" exceeds the 10 MB per-file limit.`);
+        return null;
+      }
+      projectedBytes += file.size;
+      if (projectedBytes > MAX_TOTAL_STORAGE_BYTES) {
+        setLocalError(
+          `Uploading "${file.name}" exceeds the 50 MB cumulative storage limit.`
+        );
+        return null;
+      }
+    }
+
+    return incoming;
+  }
+
+  async function processFiles(files: File[]) {
+    const valid = validateClientFiles(files);
+    if (!valid) return;
+
+    setIsUploading(true);
+    try {
+      await onUploadFiles(valid);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    if (isAtFileCap || isUploading) return;
+    const dropped = Array.from(e.dataTransfer.files);
+    void processFiles(dropped);
+  }
+
+  async function handleCheckboxToggle(doc: SourceDocumentItem) {
+    setLocalError(null);
+    if (!doc.isSelected && summary.activeTokens + doc.tokenCount > MAX_ACTIVE_CONTEXT_TOKENS) {
+      setLocalError(
+        `Selecting "${doc.filename}" exceeds the 150,000 active context token ceiling. Uncheck a large source first.`
+      );
+      return;
+    }
+
+    setPendingToggleId(doc.id);
+    try {
+      await onToggleSelect(doc.id, !doc.isSelected);
+    } finally {
+      setPendingToggleId(null);
+    }
+  }
+
+  async function handleConfirmDelete(docId: string) {
+    setDeletingId(docId);
+    try {
+      await onDeleteDoc(docId);
+      setConfirmDeleteId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const activeAlert = localError || toastError;
+
+  return (
+    <aside className="relative flex flex-col h-full bg-white border-l border-[#373737]/12 w-full lg:w-[360px] xl:w-[400px] shrink-0 overflow-hidden">
+      {/* Pale Sky Header Bar */}
+      <div className="bg-[#c1dbe3] px-4 py-3 flex items-center justify-between border-b border-[#373737]/12 shrink-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold tracking-tight text-[#373737]">
+            Sources
+          </h2>
+          <span className="rounded-full bg-white/85 px-2 py-0.5 font-mono text-[11px] font-semibold text-[#373737] border border-[#373737]/10">
+            {summary.count} / {MAX_FILES_PER_USER}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] text-[#373737]/75">
+            {formatTokensCompact(summary.activeTokens)} active tok
+          </span>
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              title="Close Sources panel"
+              className="rounded-md p-1 text-[#373737]/70 hover:text-[#373737] hover:bg-white/40 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Inline Toast Alerts */}
+      {activeAlert && (
+        <div className="mx-3.5 mt-3 rounded-xl bg-[#fce694] px-3 py-2.5 text-xs font-medium text-[#373737] border border-[#373737]/25 flex items-start gap-2 shrink-0">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span className="flex-1 leading-snug">{activeAlert}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLocalError(null);
+              onDismissToast();
+            }}
+            className="text-[#373737]/70 hover:text-[#373737] cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {toastWarning && !activeAlert && (
+        <div className="mx-3.5 mt-3 rounded-xl bg-[#f6feaa] px-3 py-2.5 text-xs font-medium text-[#373737] border border-[#373737]/20 flex items-start gap-2 shrink-0">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span className="flex-1 leading-snug">{toastWarning}</span>
+          <button
+            type="button"
+            onClick={onDismissToast}
+            className="text-[#373737]/70 hover:text-[#373737] cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Upload Dropzone */}
+      <div className="p-3.5 border-b border-[#373737]/10 shrink-0">
+        <input
+          ref={fileInputRef}
+          id="source-file-input"
+          type="file"
+          multiple
+          accept=".pdf,.txt,.md,.csv,.docx"
+          disabled={isAtFileCap || isUploading}
+          onChange={(e) => {
+            const list = e.target.files ? Array.from(e.target.files) : [];
+            void processFiles(list);
+          }}
+          className="hidden"
+        />
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isAtFileCap && !isUploading) setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          className={`rounded-xl border-[1.5px] border-dashed px-3.5 py-4 text-center transition-all ${
+            isAtFileCap
+              ? "border-[#373737]/25 bg-[#f7fafb] opacity-85"
+              : isDragging
+                ? "border-[#373737] bg-[#c7dfc5]/55 scale-[1.01]"
+                : "border-[#373737]/60 bg-[#c7dfc5]/25 hover:bg-[#c7dfc5]/40"
+          }`}
+        >
+          {isAtFileCap ? (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-[#373737]">
+                Maximum 10 sources reached.
+              </p>
+              <p className="text-[11px] text-[#373737]/70">
+                Delete a source below to upload another.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-[#373737] border border-[#373737]/12">
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UploadCloud className="h-4 w-4" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#373737]">
+                  {isUploading ? "Extracting & indexing text…" : "Drop files here or browse"}
+                </p>
+                <p className="text-[11px] text-[#373737]/65 mt-0.5">
+                  PDF, DOCX, TXT, MD, CSV • Max 10 MB each
+                </p>
+              </div>
+              <button
+                id="add-sources-btn"
+                type="button"
+                disabled={isAtFileCap || isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-graphite mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-[#f6feaa] cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add Sources</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Storage & Active Context Summary Bar */}
+        <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#373737]/65 font-mono">
+          <span>
+            Storage: {formatFileSize(summary.totalSizeBytes)} / 50 MB
+          </span>
+          <span>{storagePercent}%</span>
+        </div>
+        <div className="mt-1 h-1.5 w-full rounded-full bg-[#373737]/10 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${Math.max(summary.totalSizeBytes > 0 ? 3 : 0, storagePercent)}%`,
+              backgroundColor: storagePercent > 85 ? "#fce694" : "#c7dfc5",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Sources List */}
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+        {isLoading ? (
+          <div className="space-y-2.5">
+            {[1, 2, 3].map((idx) => (
+              <div
+                key={idx}
+                className="h-16 rounded-xl bg-[#f7fafb] border border-[#373737]/10 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
+            <div className="h-10 w-10 rounded-xl bg-[#c1dbe3]/45 flex items-center justify-center text-[#373737] mb-3">
+              <FileText className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-semibold text-[#373737]">
+              No sources uploaded yet
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[#373737]/65">
+              Upload contracts, research papers, SOPs, or CSV tables. ContextLM
+              will answer strictly from your checked sources.
+            </p>
+          </div>
+        ) : (
+          documents.map((doc) => {
+            const badge = getFileTypeBadge(doc.filename);
+            const isHighlighted = highlightedDocId === doc.id;
+            const isConfirming = confirmDeleteId === doc.id;
+            const isBusy = pendingToggleId === doc.id || deletingId === doc.id;
+
+            return (
+              <div
+                key={doc.id}
+                id={`source-card-${doc.id}`}
+                className={`group rounded-xl border p-3 transition-all ${
+                  isHighlighted
+                    ? "border-[#373737] bg-[#f6feaa]/55 source-highlight-pulse"
+                    : doc.isSelected
+                      ? "border-[#373737]/18 bg-white hover:border-[#373737]/35 shadow-[0_1px_4px_rgba(55,55,55,0.04)]"
+                      : "border-[#373737]/10 bg-[#f7fafb] opacity-75 hover:opacity-100"
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  {/* Include in Context Checkbox */}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={doc.isSelected}
+                    aria-label={`Include ${doc.filename} in context`}
+                    disabled={isBusy}
+                    onClick={() => void handleCheckboxToggle(doc)}
+                    className={`mt-0.5 h-4.5 w-4.5 shrink-0 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                      doc.isSelected
+                        ? "bg-[#373737] border-[#373737] text-[#f6feaa]"
+                        : "bg-white border-[#373737]/35 text-transparent hover:border-[#373737]"
+                    }`}
+                  >
+                    {pendingToggleId === doc.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[#c1dbe3]" />
+                    ) : (
+                      <Check className="h-3 w-3 stroke-[3]" />
+                    )}
+                  </button>
+
+                  {/* File info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-[#373737] shrink-0"
+                        style={{ backgroundColor: badge.bg }}
+                      >
+                        {badge.icon === "sheet" ? (
+                          <FileSpreadsheet className="h-2.5 w-2.5" />
+                        ) : badge.icon === "pdf" ? (
+                          <FileType2 className="h-2.5 w-2.5" />
+                        ) : (
+                          <FileText className="h-2.5 w-2.5" />
+                        )}
+                        {badge.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
+                        title={doc.filename}
+                        className="text-left text-xs font-semibold text-[#373737] truncate hover:underline cursor-pointer"
+                      >
+                        {doc.filename}
+                      </button>
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-[#373737]/65">
+                      <span className="rounded bg-[#f7fafb] px-1.5 py-0.5 border border-[#373737]/10">
+                        {formatTokensCompact(doc.tokenCount)} tok
+                      </span>
+                      <span>{formatFileSize(doc.sizeBytes)}</span>
+                    </div>
+                  </div>
+
+                  {/* Quick actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isConfirming ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={deletingId === doc.id}
+                          onClick={() => void handleConfirmDelete(doc.id)}
+                          className="rounded-md bg-[#373737] px-2 py-1 text-[10px] font-semibold text-[#f6feaa] hover:bg-[#242424] cursor-pointer"
+                        >
+                          {deletingId === doc.id ? "…" : "Delete"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="rounded-md bg-[#f7fafb] px-1.5 py-1 text-[10px] font-medium text-[#373737] border border-[#373737]/15 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
+                          title="Preview extracted text"
+                          className="rounded-md p-1 text-[#373737]/50 hover:text-[#373737] hover:bg-[#c1dbe3]/35 transition-colors cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(doc.id)}
+                          title="Delete source"
+                          className="rounded-md p-1 text-[#373737]/50 hover:text-[#373737] hover:bg-[#fce694] transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Quick Snippet Preview Drawer (overlays bottom half of sidebar cleanly) */}
+      {previewDoc && (
+        <div className="absolute inset-x-0 bottom-0 z-20 max-h-[60%] flex flex-col bg-white border-t-2 border-[#373737] shadow-[0_-12px_32px_rgba(55,55,55,0.16)]">
+          <div className="flex items-center justify-between gap-2 bg-[#c7dfc5] px-3.5 py-2.5 border-b border-[#373737]/12">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#373737]/70">
+                Verified Source Preview
+              </p>
+              <p className="text-xs font-semibold text-[#373737] truncate">
+                {previewDoc.filename}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClosePreview}
+              className="rounded-md p-1 text-[#373737] hover:bg-white/50 cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="p-3.5 overflow-y-auto text-xs leading-relaxed text-[#373737]/85 font-mono whitespace-pre-wrap bg-[#f7fafb]">
+            {previewDoc.loading ? (
+              <div className="flex items-center gap-2 py-4 text-[#373737]/60">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading extracted source snippet…</span>
+              </div>
+            ) : (
+              previewDoc.excerpt
+            )}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}

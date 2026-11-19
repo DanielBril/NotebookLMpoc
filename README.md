@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ContextLM — Fast Grounded Document Q&A POC
 
-## Getting Started
+ContextLM is a NotebookLM-inspired, strictly document-grounded Q&A application built with **Next.js 16 (App Router + Turbopack)**, **TypeScript**, **Tailwind CSS v4**, **Auth.js v5**, **Prisma + PostgreSQL**, and **OpenAI (`gpt-6-luna` & `gpt-5-nano`)**.
 
-First, run the development server:
+## Key Features
+
+- **Strict Grounded Q&A Engine**: Streams answers via SSE exclusively from user-selected uploaded documents (`temperature: 0.0`) with clickable inline source citations (`[1] filename.pdf`) and deterministic refusal when facts are absent.
+- **4-Layer Prompt-Injection Guardrails**:
+  1. Layer 1: Deterministic regex, XML tag spoofing, Base64 instruction smuggling, and out-of-scope pre-filter (`0` LLM tokens).
+  2. Layer 2: Per-request cryptographic 8-char hex nonce XML sandboxing + XML entity escaping (`escapeXml`).
+  3. Layer 3: Strict system instruction hierarchy + deterministic `file.id` source ordering for OpenAI prefix prompt caching.
+  4. Layer 4: Fast `gpt-5-nano` micro-classifier + streaming canary (`CANARY_7749_CTXLM`) & tag-leakage abort filter.
+- **Document Ingestion & Hard Quotas**: PDF (`pdf-parse`), DOCX (`mammoth`), TXT, MD, and CSV extraction enforcing 10 files max, 10 MB per file, 50 MB cumulative storage, and 150,000 active context tokens.
+- **Authentication & RBAC**: Google OAuth 2.0 + Credentials login/signup, pre-seeded `admin` / `admin` (`Role.ADMIN`), and route middleware protecting `/workspace`, `/admin`, and API routes.
+- **Admin "Eagle's Eye" Telemetry Portal (`/admin`)**: KPI cards, 24-hour peak usage chart, day-of-week volume/latency chart, searchable per-user token/cost leaderboard, and live Guardrail Audit Feed.
+
+## Quickstart
+
+### 1. Configure Environment Variables
+
+Copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Fill in:
+- `DATABASE_URL` — PostgreSQL connection string (Neon, Supabase, Vercel Postgres, or local Postgres)
+- `AUTH_SECRET` — generate with `openssl rand -base64 32`
+- `AUTH_URL` — `http://localhost:3000` (or your production domain)
+- `OPENAI_API_KEY` — OpenAI API key
+- *(Optional)* `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` for Google OAuth
+
+### 2. Initialize Database & Seed Admin Account
+
+```bash
+npm install
+npm run db:push
+npm run db:seed
+```
+
+Default seeded admin credentials:
+- **Username**: `admin`
+- **Password**: `admin`
+
+### 3. Run Locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Deploy to Vercel or Docker
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Vercel**: Import this repository in Vercel, add the environment variables above, and deploy. Run `npm run db:push && npm run db:seed` against your production database once.
+- **Docker**:
+  ```bash
+  docker build -t contextlm .
+  docker run -p 3000:3000 --env-file .env contextlm
+  ```

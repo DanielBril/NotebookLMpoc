@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum QueryStatus {
+  SUCCESS
+  NO_CONTEXT_FOUND
+  BLOCKED_INJECTION
+  BLOCKED_OUT_OF_SCOPE
+  ERROR
+}
+
+model User {
+  id            String     @id @default(cuid())
+  username      String     @unique
+  email         String?    @unique
+  name          String?
+  passwordHash  String?    // Null for Google OAuth-only users
+  image         String?
+  role          Role       @default(USER)
+  provider      String     @default("credentials") // "credentials" | "google"
+  createdAt     DateTime   @default(now())
+  lastActiveAt  DateTime   @default(now())
+
+  documents     Document[]
+  messages      Message[]
+  usageLogs     UsageLog[]
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename      String
+  mimeType      String
+  sizeBytes     Int
+  extractedText String   @db.Text
+  tokenCount    Int
+  isSelected    Boolean  @default(true) // Toggled in right-side Sources panel
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // "user" | "assistant" | "system_alert"
+  content   String   @db.Text
+  citations Json?    // Array of { documentId, filename, snippet }
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model UsageLog {
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model            String      // e.g., "gpt-6-luna"
+  promptTokens     Int         @default(0)
+  cachedTokens     Int         @default(0)
+  completionTokens Int         @default(0)
+  totalTokens      Int         @default(0)
+  estimatedCostUsd Float       @default(0)
+  latencyMs        Int         @default(0)
+  status           QueryStatus @default(SUCCESS)
+  guardrailReason  String?     // Populated if blocked by injection/scope filter
+  hourOfDay        Int         // 0-23 (UTC or configured TZ) for fast peak-time aggregation
+  dayOfWeek        Int         // 0-6 (Sun-Sat)
+  createdAt        DateTime    @default(now())
+
+  @@index([userId])
+  @@index([hourOfDay])
+  @@index([createdAt])
+}
