@@ -5,19 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowUp,
-  BookOpenCheck,
-  CheckCircle2,
-  ClipboardCheck,
-  Clock,
-  FileCheck2,
-  FileText,
-  GitCompareArrows,
   Loader2,
-  Lock,
   ShieldAlert,
-  Sparkles,
-  Trash2,
-  Zap,
 } from "lucide-react";
 import type { SourceDocumentItem } from "@/components/SourcesSidebar";
 import type { StudioMode } from "@/app/api/studio/route";
@@ -146,99 +135,81 @@ export function ChatPanel({
   }
 
   return (
-    <section className="flex-1 flex flex-col min-w-0 h-full bg-[#f2fafb]">
-      {/* Subtle Top Sub-bar inside Chat Panel + Grounded Studio Actions */}
-      <div className="px-4 sm:px-7 py-2.5 bg-white/90 backdrop-blur-xs border-b border-[#9db4c0]/35 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+    <section className="flex-1 flex flex-col min-w-0 h-full bg-white">
+      {/* Level 2 (Secondary Context): Minimal Studio & Grounding Sub-bar */}
+      <div className="px-4 sm:px-8 py-2.5 bg-white border-b border-[#253237]/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 text-xs text-[#5c6b73]">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e0fbfc] px-2.5 py-0.5 font-semibold text-[#253237] border border-[#9db4c0]/50">
-            <Lock className="h-3 w-3 text-[#5c6b73]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#253237]" />
+          <span className="font-medium text-[#253237]">
             {t.chat.groundedBadge}
           </span>
-          <span className="hidden md:inline text-[#5c6b73]">
+          <span className="text-[#9db4c0]">·</span>
+          <span>
             {activeDocuments.length > 0
               ? t.chat.activeSourcesCount(activeDocuments.length)
               : t.chat.noActiveSources}
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {/* Studio Action 1: Cross-Document Contradiction Radar */}
+        {/* Secondary Ghost Actions — No filled dark background competing with primary CTA */}
+        <div className="flex flex-wrap items-center gap-1">
           <button
             id="studio-contradictions-btn"
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("contradictions")}
-            title={
-              isHe
-                ? "הצלבת מקורות וזיהוי סתירות"
-                : "Cross-Document Contradiction & Conflict Radar"
-            }
-            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#e0fbfc] hover:bg-[#c2dfe3] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#9db4c0]/60 disabled:opacity-40 cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
           >
-            <GitCompareArrows className="h-3.5 w-3.5" />
-            <span>{isHe ? "רדאר סתירות" : "Conflict Radar"}</span>
+            {isHe ? "רדאר סתירות" : "Conflict Radar"}
           </button>
 
-          {/* Studio Action 2: Executive Brief (PDF) */}
           <button
             id="studio-brief-btn"
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("brief")}
-            title={
-              isHe
-                ? "הפקת תקציר מנהלים מבוסס מקורות וייצוא ל-PDF"
-                : "Generate Grounded Executive Brief & Export as PDF"
-            }
-            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#c2dfe3]/65 hover:bg-[#c2dfe3] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#9db4c0]/60 disabled:opacity-40 cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
           >
-            <FileText className="h-3.5 w-3.5" />
-            <span>{isHe ? "תקציר מנהלים (PDF)" : "Executive Brief (PDF)"}</span>
+            {isHe ? "תקציר מנהלים (PDF)" : "Executive Brief (PDF)"}
           </button>
 
-          {/* Studio Action 3: Verification & Audit Quiz */}
           <button
             id="studio-quiz-btn"
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("quiz")}
-            title={
-              isHe
-                ? "יצירת בוחן בקרה ואימות עובדות מהמקורות"
-                : "Generate Grounded Verification & Audit Quiz"
-            }
-            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#253237] hover:bg-[#5c6b73] px-2.5 py-1 text-xs font-semibold text-[#e0fbfc] disabled:opacity-40 cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
           >
-            <ClipboardCheck className="h-3.5 w-3.5" />
-            <span>{isHe ? "בוחן בקרה" : "Audit Quiz"}</span>
+            {isHe ? "בוחן בקרה" : "Audit Quiz"}
           </button>
 
           {messages.length > 0 && (
-            <button
-              id="clear-chat-btn"
-              type="button"
-              disabled={isSending}
-              onClick={() => void onClearChat()}
-              className="interactive-chip inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#c2dfe3]/40 disabled:opacity-40 cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>{t.chat.clearChat}</span>
-            </button>
+            <>
+              <span className="mx-1 h-3.5 w-px bg-[#253237]/10" />
+              <button
+                id="clear-chat-btn"
+                type="button"
+                disabled={isSending}
+                onClick={() => void onClearChat()}
+                className="rounded-md px-2 py-1 text-xs text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] disabled:opacity-35 transition-colors cursor-pointer"
+              >
+                {t.chat.clearChat}
+              </button>
+            </>
           )}
         </div>
       </div>
 
-      {/* Scrollable Q&A Stream */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-6">
-        <div className="mx-auto max-w-3xl space-y-5">
+      {/* Level 1 (Primary Focus): Editorial Grounded Q&A Stream */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8">
+        <div className="mx-auto max-w-3xl">
           {messages.length === 0 ? (
-            <div className="py-10 sm:py-16 text-center space-y-6 animate-fade-in-up">
-              <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#c2dfe3]/75 text-[#253237] border border-[#9db4c0]/55 shadow-xs">
-                <BookOpenCheck className="h-7 w-7" />
-              </div>
-
-              <div className="space-y-2 max-w-lg mx-auto">
-                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#253237]">
+            <div className="py-14 sm:py-20 space-y-8">
+              <div className="space-y-2.5 max-w-xl">
+                <p className="text-[11px] font-mono uppercase tracking-widest text-[#5c6b73]">
+                  {isHe ? "סינתזה מבוססת מקורות בלבד" : "Strictly Source-Grounded Synthesis"}
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#253237]">
                   {totalDocumentsCount === 0
                     ? t.chat.emptyTitleNoDocs
                     : activeDocuments.length === 0
@@ -255,21 +226,23 @@ export function ChatPanel({
               </div>
 
               {starterChips.length > 0 && (
-                <div className="pt-2 space-y-2.5">
-                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#5c6b73]">
-                    <Sparkles className="h-3.5 w-3.5" />
+                <div className="space-y-2 border-t border-[#253237]/10 pt-5">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-[#5c6b73]">
                     {t.chat.suggestedHeading}
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-start">
+                  <div className="divide-y divide-[#253237]/8">
                     {starterChips.map((chip, idx) => (
                       <button
                         key={idx}
                         type="button"
                         disabled={isSending}
                         onClick={() => void onSendQuery(chip)}
-                        className="interactive-card group rounded-xl bg-white hover:bg-[#e0fbfc]/75 p-3.5 text-xs leading-relaxed font-medium text-[#253237] border border-[#9db4c0]/50 hover:border-[#5c6b73] shadow-[0_2px_10px_rgba(37,50,55,0.04)] cursor-pointer text-start"
+                        className="w-full py-2.5 text-start text-sm text-[#253237] hover:text-[#5c6b73] flex items-center justify-between gap-4 transition-colors cursor-pointer group"
                       >
-                        <span className="line-clamp-3">{chip}</span>
+                        <span className="truncate">{chip}</span>
+                        <span className="text-xs font-mono text-[#9db4c0] group-hover:text-[#253237] shrink-0">
+                          →
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -277,172 +250,143 @@ export function ChatPanel({
               )}
             </div>
           ) : (
-            messages.map((msg) => {
-              // User Bubble: --light-cyan (#e0fbfc) background with --jet-black text
-              if (msg.role === "user") {
+            <div className="divide-y divide-[#253237]/8">
+              {messages.map((msg) => {
+                // User Question — High-contrast editorial prompt row
+                if (msg.role === "user") {
+                  return (
+                    <div key={msg.id} className="py-5 first:pt-0">
+                      <p className="text-[11px] font-mono uppercase tracking-wider text-[#5c6b73] mb-1">
+                        {isHe ? "שאלה" : "Question"}
+                      </p>
+                      <div
+                        dir="auto"
+                        className="text-base font-medium leading-relaxed text-[#253237] whitespace-pre-wrap"
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Guardrail / Security Alert Row
+                if (msg.role === "system_alert") {
+                  return (
+                    <div key={msg.id} className="py-5">
+                      <div className="rounded-lg bg-[#f8fafb] border-s-2 border-[#253237] px-4 py-3 text-sm text-[#253237]">
+                        <div className="flex items-start gap-2.5">
+                          <ShieldAlert className="h-4 w-4 mt-0.5 text-[#253237] shrink-0" />
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#253237]">
+                              {t.chat.guardrailTriggeredTitle}
+                            </p>
+                            <p
+                              dir="auto"
+                              className="text-sm leading-relaxed text-[#5c6b73]"
+                            >
+                              {msg.content}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Assistant Grounded Response — Clean editorial prose without heavy outer card box
+                const isNoContextRefusal = checkNoContextRefusal(msg.content);
+
                 return (
-                  <div
-                    key={msg.id}
-                    className="flex justify-end animate-message-in"
-                  >
+                  <div key={msg.id} className="py-6">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-[#5c6b73]">
+                        {isNoContextRefusal
+                          ? t.chat.strictRefusalBadge
+                          : isHe
+                            ? "תשובה מבוססת מקורות"
+                            : "Grounded Answer"}
+                      </span>
+
+                      {/* Level 3 (Tertiary Details): Quiet tabular telemetry */}
+                      {msg.usage && !msg.isStreaming && (
+                        <div
+                          dir="ltr"
+                          className="flex items-center gap-2.5 text-[11px] font-mono text-[#9db4c0]"
+                        >
+                          <span>{msg.usage.latencyMs}ms</span>
+                          {msg.usage.ttftMs > 0 && (
+                            <span>TTFT {msg.usage.ttftMs}ms</span>
+                          )}
+                          {msg.usage.cachedTokens > 0 && (
+                            <span className="text-[#5c6b73]">
+                              {t.chat.cachedTok(
+                                msg.usage.cachedTokens.toLocaleString()
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <div
                       dir="auto"
-                      className="max-w-[82%] rounded-2xl rounded-br-sm bg-[#e0fbfc] px-4 py-3 text-sm leading-relaxed text-[#253237] border border-[#9db4c0]/70 shadow-xs whitespace-pre-wrap"
+                      className={`contextlm-prose ${
+                        isNoContextRefusal ? "text-[#5c6b73] italic" : ""
+                      }`}
                     >
-                      {msg.content}
-                    </div>
-                  </div>
-                );
-              }
-
-              // Guardrail / Security Alert Card
-              if (msg.role === "system_alert") {
-                return (
-                  <div
-                    key={msg.id}
-                    className="flex justify-start animate-message-in"
-                  >
-                    <div className="max-w-[90%] rounded-2xl bg-[#253237] px-4 py-3.5 text-sm text-[#e0fbfc] border border-[#5c6b73] shadow-[0_8px_22px_-8px_rgba(37,50,55,0.45)]">
-                      <div className="flex items-start gap-2.5">
-                        <div className="mt-0.5 rounded-lg bg-[#e0fbfc] p-1.5 text-[#253237] shrink-0">
-                          <ShieldAlert className="h-4 w-4" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold uppercase tracking-wider text-[#c2dfe3]">
-                            {t.chat.guardrailTriggeredTitle}
-                          </p>
-                          <p
-                            dir="auto"
-                            className="text-sm leading-relaxed text-[#e0fbfc]"
-                          >
-                            {msg.content}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Assistant Grounded Bubble
-              const isNoContextRefusal = checkNoContextRefusal(msg.content);
-
-              return (
-                <div
-                  key={msg.id}
-                  className="flex justify-start animate-message-in"
-                >
-                  <div
-                    className={`max-w-[92%] rounded-2xl rounded-bl-sm px-5 py-4 border shadow-xs transition-colors ${
-                      isNoContextRefusal
-                        ? "bg-[#c2dfe3]/65 border-[#5c6b73]/55"
-                        : "bg-white border-[#9db4c0]/50"
-                    }`}
-                  >
-                    {isNoContextRefusal && (
-                      <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#253237]">
-                        <ShieldAlert className="h-3.5 w-3.5 text-[#5c6b73]" />
-                        <span>{t.chat.strictRefusalBadge}</span>
-                      </div>
-                    )}
-
-                    <div dir="auto" className="contextlm-prose">
                       {msg.content ? (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
                       ) : (
-                        <span className="inline-flex items-center gap-2.5 text-xs text-[#5c6b73]">
-                          <span className="inline-flex items-center gap-1">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#253237] typing-dot" />
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#5c6b73] typing-dot typing-dot-2" />
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#9db4c0] typing-dot typing-dot-3" />
-                          </span>
+                        <span className="inline-flex items-center gap-2 text-xs text-[#5c6b73]">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#253237]" />
                           <span>{t.chat.synthesizing}</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Interactive Inline Citation Pills with Verify-Claim Confidence */}
+                    {/* Level 2 (Secondary Context): Clean Citation Footnotes */}
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="mt-3.5 pt-3 border-t border-[#9db4c0]/35">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73] mb-2">
-                          {t.chat.verifiedCitationsLabel}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {msg.citations.map((cite) => (
-                            <button
-                              key={`${msg.id}-cite-${cite.index}-${cite.documentId}`}
-                              type="button"
-                              onClick={() => onCitationClick(cite)}
-                              className="interactive-chip inline-flex items-center gap-1.5 rounded-full bg-[#c2dfe3]/80 hover:bg-[#9db4c0] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#5c6b73]/25 cursor-pointer"
-                            >
-                              <FileCheck2 className="h-3 w-3 shrink-0" />
-                              <span className="font-mono" dir="ltr">
-                                [{cite.index}]
-                              </span>
-                              <span className="max-w-[165px] truncate">
-                                {cite.filename}
-                              </span>
-                              {cite.confidence && (
-                                <span
-                                  className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.2 text-[9px] font-bold ${
-                                    cite.confidence === "verbatim"
-                                      ? "bg-[#253237] text-[#e0fbfc]"
-                                      : "bg-[#e0fbfc] text-[#253237]"
-                                  }`}
-                                >
-                                  <CheckCircle2 className="h-2.5 w-2.5" />
-                                  {cite.matchScore
-                                    ? `${cite.matchScore}%`
-                                    : cite.confidence === "verbatim"
-                                      ? isHe
-                                        ? "מדויק"
-                                        : "Exact"
-                                      : isHe
-                                        ? "מבוסס"
-                                        : "Verified"}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Stream Telemetry Strip */}
-                    {msg.usage && !msg.isStreaming && (
-                      <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[11px] font-mono text-[#5c6b73]">
-                        <span className="inline-flex items-center gap-1" dir="ltr">
-                          <Clock className="h-3 w-3" />
-                          {msg.usage.latencyMs}ms
+                      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-mono text-[#5c6b73] me-1">
+                          {t.chat.verifiedCitationsLabel}:
                         </span>
-                        {msg.usage.ttftMs > 0 && (
-                          <span dir="ltr">TTFT {msg.usage.ttftMs}ms</span>
-                        )}
-                        {msg.usage.cachedTokens > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded bg-[#e0fbfc] px-1.5 py-0.5 text-[#253237] border border-[#9db4c0]/45 font-semibold">
-                            <Zap className="h-2.5 w-2.5" />
-                            {t.chat.cachedTok(
-                              msg.usage.cachedTokens.toLocaleString()
+                        {msg.citations.map((cite) => (
+                          <button
+                            key={`${msg.id}-cite-${cite.index}-${cite.documentId}`}
+                            type="button"
+                            onClick={() => onCitationClick(cite)}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-[#f8fafb] hover:bg-[#e0fbfc]/60 px-2.5 py-1 text-xs font-medium text-[#253237] border border-[#253237]/12 transition-colors cursor-pointer"
+                          >
+                            <span className="font-mono text-[11px] font-semibold text-[#5c6b73]" dir="ltr">
+                              [{cite.index}]
+                            </span>
+                            <span className="max-w-[180px] truncate">
+                              {cite.filename}
+                            </span>
+                            {cite.matchScore && (
+                              <span className="font-mono text-[10px] text-[#5c6b73]">
+                                · {cite.matchScore}%
+                              </span>
                             )}
-                          </span>
-                        )}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
           <div ref={scrollAnchorRef} />
         </div>
       </div>
 
-      {/* Bottom Sticky Input Composer */}
-      <div className="border-t border-[#9db4c0]/35 bg-white px-4 sm:px-7 py-3.5 shrink-0">
+      {/* Level 1 Primary Action: Bottom Sticky Input Composer */}
+      <div className="border-t border-[#253237]/10 bg-white px-4 sm:px-8 py-4 shrink-0">
         <div className="mx-auto max-w-3xl">
-          <div className="rounded-2xl bg-[#f2fafb] border border-[#9db4c0]/65 focus-within:border-[#253237] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#c2dfe3]/60 transition-all p-2.5 shadow-xs">
+          <div className="rounded-xl bg-[#f8fafb] border border-[#253237]/18 focus-within:border-[#253237] focus-within:bg-white transition-colors px-3.5 py-2.5">
             <textarea
               ref={textareaRef}
               id="chat-query-input"
@@ -461,27 +405,26 @@ export function ChatPanel({
                   ? t.chat.inputPlaceholderActive
                   : t.chat.inputPlaceholderEmpty
               }
-              className="w-full resize-none bg-transparent px-2 py-1 text-sm text-[#253237] placeholder:text-[#5c6b73]/65 focus:outline-none max-h-40"
+              className="w-full resize-none bg-transparent py-1 text-sm text-[#253237] placeholder:text-[#5c6b73]/70 focus:outline-none max-h-40"
             />
 
-            <div className="mt-2 flex items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-2 text-[11px] text-[#5c6b73]">
-                <span className="inline-flex items-center gap-1 rounded-md bg-[#c2dfe3]/55 px-2 py-0.5 font-medium text-[#253237]">
-                  <Lock className="h-3 w-3 text-[#5c6b73]" />
-                  {t.chat.strictlySourcesOnly}
-                </span>
+            <div className="mt-2 flex items-center justify-between gap-2 pt-2 border-t border-[#253237]/8">
+              <div className="flex items-center gap-3 text-[11px] text-[#5c6b73]">
+                <span>{t.chat.strictlySourcesOnly}</span>
+                <span className="text-[#9db4c0]">·</span>
                 <span className="font-mono" dir="ltr">
                   {input.length.toLocaleString()} /{" "}
                   {MAX_QUERY_CHARS.toLocaleString()}
                 </span>
               </div>
 
+              {/* Single Primary Accent Action */}
               <button
                 id="chat-send-btn"
                 type="button"
                 disabled={isSending || !input.trim()}
                 onClick={() => void submitCurrent()}
-                className="btn-jet inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer"
+                className="btn-jet inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold cursor-pointer"
               >
                 {isSending ? (
                   <>

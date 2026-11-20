@@ -608,7 +608,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#f2fafb]">
+    <div className="h-screen flex flex-col overflow-hidden bg-white">
       <Navbar
         mode="workspace"
         user={user}
@@ -639,7 +639,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
         {/* Desktop collapsible & Mobile overlay sidebar */}
         {sidebarOpen && (
-          <div className="fixed inset-y-0 end-0 top-[59px] z-20 w-full max-w-[380px] lg:static lg:inset-auto lg:w-auto lg:max-w-none shadow-2xl lg:shadow-none animate-fade-in">
+          <div className="fixed inset-y-0 end-0 top-14 z-20 w-full max-w-[380px] lg:static lg:inset-auto lg:w-auto lg:max-w-none shadow-[0_0_32px_rgba(37,50,55,0.12)] lg:shadow-none animate-fade-in">
             <SourcesSidebar
               documents={documents}
               summary={summary}

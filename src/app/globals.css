@@ -27,10 +27,10 @@
   --gradient-radial: radial-gradient(#e0fbfcff, #c2dfe3ff, #9db4c0ff, #5c6b73ff, #253237ff);
   --gradient-subtle-header: linear-gradient(90deg, #e0fbfcff 0%, #c2dfe3ff 35%, #9db4c0ff 70%, #5c6b73ff 100%);
 
-  /* Functional Derived Surfaces */
-  --bg-canvas: #f2fafb;
+  /* Functional Derived Surfaces — High-Contrast Neutral Palette */
+  --bg-canvas: #f8fafb;
   --bg-surface: #ffffff;
-  --border-subtle: rgba(37, 50, 55, 0.14);
+  --border-subtle: rgba(37, 50, 55, 0.1);
 }
 
 @theme inline {
@@ -58,109 +58,58 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Brand Auth Split-Screen Mesh with Subtle Ambient Motion */
+/* Brand Auth Split-Screen Surface */
 .auth-brand-mesh {
-  background-color: var(--light-blue);
-  background-image:
-    radial-gradient(at 14% 16%, rgba(224, 251, 252, 0.96) 0px, transparent 58%),
-    radial-gradient(at 86% 18%, rgba(157, 180, 192, 0.72) 0px, transparent 54%),
-    radial-gradient(at 78% 84%, rgba(92, 107, 115, 0.45) 0px, transparent 58%),
-    radial-gradient(at 18% 86%, rgba(194, 223, 227, 0.88) 0px, transparent 58%),
-    linear-gradient(135deg, #e0fbfcff 0%, #c2dfe3ff 42%, #9db4c0ff 82%, #5c6b73ff 100%);
-  background-size: 140% 140%;
-  animation: meshDrift 18s ease-in-out infinite alternate;
+  background-color: #253237;
+  background-image: radial-gradient(
+    circle at 18% 22%,
+    rgba(92, 107, 115, 0.25) 0%,
+    transparent 55%
+  );
 }
 
-/* Primary Jet-Black CTA Button with Micro-Interactions */
+/* Primary Jet-Black Action Button — Reserved strictly for primary actions */
 .btn-jet {
   position: relative;
-  overflow: hidden;
   background-color: var(--jet-black);
-  color: var(--light-cyan);
+  color: #ffffff;
   transition:
-    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 200ms ease;
-}
-
-.btn-jet::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 20%,
-    rgba(224, 251, 252, 0.14) 50%,
-    transparent 80%
-  );
-  transform: translateX(-120%);
-  transition: transform 550ms cubic-bezier(0.22, 1, 0.36, 1);
-  pointer-events: none;
+    background-color 150ms ease,
+    transform 120ms ease,
+    box-shadow 150ms ease;
 }
 
 .btn-jet:hover:not(:disabled) {
-  background-color: #1c272b;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px -6px rgba(37, 50, 55, 0.38);
-}
-
-.btn-jet:hover:not(:disabled)::after {
-  transform: translateX(120%);
+  background-color: #182226;
+  box-shadow: 0 2px 8px rgba(37, 50, 55, 0.18);
 }
 
 .btn-jet:active:not(:disabled) {
-  transform: translateY(0px) scale(0.985);
-  box-shadow: 0 3px 10px -4px rgba(37, 50, 55, 0.3);
+  transform: scale(0.99);
 }
 
 .btn-jet:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Interactive Card & Chip Micro-Interactions */
+/* Secondary / Ghost Controls */
 .interactive-card {
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms ease,
-    border-color 200ms ease,
-    background-color 200ms ease;
-}
-
-.interactive-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px -10px rgba(37, 50, 55, 0.16);
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
 .interactive-chip {
   transition:
-    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 180ms ease;
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 }
 
-.interactive-chip:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1.015);
-  box-shadow: 0 6px 14px -6px rgba(37, 50, 55, 0.18);
-}
-
-.interactive-chip:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-/* Animated Brand Gradient Accent Strip */
+/* Hairline Bottom Divider */
 .gradient-bar-animated {
-  background: linear-gradient(
-    90deg,
-    #e0fbfcff 0%,
-    #c2dfe3ff 25%,
-    #9db4c0ff 50%,
-    #5c6b73ff 75%,
-    #e0fbfcff 100%
-  );
-  background-size: 220% 100%;
-  animation: gradientShimmer 9s ease-in-out infinite;
+  background: rgba(37, 50, 55, 0.08);
 }
 
 /* Subtle Brand Scrollbars */

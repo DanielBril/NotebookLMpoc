@@ -4,14 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import {
-  Activity,
-  BookOpen,
-  LogOut,
-  PanelRightOpen,
-  Shield,
-  Terminal,
-} from "lucide-react";
+import { LogOut, PanelRightOpen } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/lib/i18n";
@@ -52,10 +45,10 @@ export function Navbar({
     .slice(0, 2);
 
   return (
-    <header className="relative z-30 shrink-0 bg-[#253237] text-[#e0fbfc] shadow-[0_4px_18px_rgba(37,50,55,0.16)]">
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-3">
-        {/* Start: Brand + Page Title */}
-        <div className="flex items-center gap-3 min-w-0">
+    <header className="relative z-30 shrink-0 bg-[#253237] text-[#ffffff] border-b border-white/10">
+      <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
+        {/* Start: Brand + Mode Navigation */}
+        <div className="flex items-center gap-4 min-w-0">
           <Link
             href={
               mode === "developer"
@@ -66,55 +59,81 @@ export function Navbar({
             }
             className="shrink-0 focus:outline-none"
           >
-            <BrandLogo size={28} variant="light" />
+            <BrandLogo size={26} variant="light" />
           </Link>
-          <span className="hidden sm:inline-block h-5 w-px bg-[#9db4c0]/25" />
-          <div className="hidden sm:flex items-center gap-2 min-w-0">
-            <h1 className="text-sm font-medium text-[#e0fbfc] truncate">
-              {mode === "developer"
-                ? isHe
-                  ? "מרכז דיאגנוסטיקה ולוגים למפתחים"
-                  : "Developer Ops & Diagnostics"
-                : mode === "admin"
-                  ? t.navbar.adminPortalTitle
-                  : t.navbar.workspaceTitle}
-            </h1>
-            {mode === "admin" && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#c2dfe3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#253237]">
-                <Shield className="h-3 w-3" />
-                {t.navbar.adminBadge}
+
+          <span className="hidden sm:inline-block h-4 w-px bg-white/15" />
+
+          <nav className="hidden sm:flex items-center gap-1">
+            {(user.role === "ADMIN" || user.role === "DEVELOPER") ? (
+              <>
+                <Link
+                  id="nav-workspace-link"
+                  href="/workspace"
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    mode === "workspace"
+                      ? "bg-white/15 text-white"
+                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {t.navbar.workspaceBtn}
+                </Link>
+                <Link
+                  id="nav-admin-link"
+                  href="/admin"
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    mode === "admin"
+                      ? "bg-white/15 text-white"
+                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {t.navbar.adminPortalBtn}
+                </Link>
+                <Link
+                  id="nav-developer-link"
+                  href="/developer"
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    mode === "developer"
+                      ? "bg-white/15 text-white"
+                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {isHe ? "דיאגנוסטיקה ולוגים" : "Developer Ops"}
+                </Link>
+              </>
+            ) : (
+              <span className="text-xs font-medium text-[#c2dfe3] truncate">
+                {t.navbar.workspaceTitle}
               </span>
             )}
-            {mode === "developer" && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#e0fbfc] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#253237]">
-                <Terminal className="h-3 w-3" />
-                {isHe ? "מפתח" : "Developer"}
-              </span>
-            )}
-          </div>
+          </nav>
         </div>
 
-        {/* Center: Active Context Meter (Workspace mode) */}
+        {/* Center: Clean Tabular Context Readout (Workspace mode only) */}
         {mode === "workspace" && (
-          <div className="hidden md:flex items-center gap-3 rounded-full bg-[#5c6b73]/30 px-3.5 py-1.5 text-xs border border-[#9db4c0]/25">
-            <span className="font-mono text-[#c2dfe3]">
-              <strong className="text-[#e0fbfc]">{sourceCount}</strong> / {MAX_FILES_PER_USER}{" "}
+          <div className="hidden md:flex items-center gap-3 text-xs font-mono text-[#c2dfe3]">
+            <span>
+              <strong className="text-white font-semibold">{sourceCount}</strong>
+              <span className="text-[#9db4c0]">/{MAX_FILES_PER_USER}</span>{" "}
               {t.navbar.sourcesUnit}
             </span>
-            <span className="text-[#9db4c0]/50">•</span>
+            <span className="text-white/20">|</span>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[#c2dfe3]">
-                <strong className={isNearTokenLimit ? "text-[#e0fbfc]" : "text-[#c2dfe3]"}>
+              <span>
+                <strong className="text-white font-semibold">
                   {activeTokens.toLocaleString()}
-                </strong>{" "}
-                / {MAX_ACTIVE_CONTEXT_TOKENS.toLocaleString()} {t.navbar.tokensUnit}
+                </strong>
+                <span className="text-[#9db4c0]">
+                  /{MAX_ACTIVE_CONTEXT_TOKENS.toLocaleString()}
+                </span>{" "}
+                {t.navbar.tokensUnit}
               </span>
-              <div className="w-16 h-1.5 rounded-full bg-white/15 overflow-hidden">
+              <div className="w-14 h-1 rounded-full bg-white/15 overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${Math.max(activeTokens > 0 ? 4 : 0, Math.round(tokenRatio * 100))}%`,
-                    backgroundColor: isNearTokenLimit ? "#e0fbfc" : "#c2dfe3",
+                    backgroundColor: isNearTokenLimit ? "#e0fbfc" : "#9db4c0",
                   }}
                 />
               </div>
@@ -122,49 +141,9 @@ export function Navbar({
           </div>
         )}
 
-        {/* End: Language Toggle + Role Switchers + Sidebar Toggle + User + Sign Out */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* End: Utilities & User */}
+        <div className="flex items-center gap-2 shrink-0">
           <LanguageToggle variant="dark" id="navbar-lang-toggle" />
-
-          {(user.role === "ADMIN" || user.role === "DEVELOPER") &&
-            mode !== "workspace" && (
-              <Link
-                id="nav-workspace-link"
-                href="/workspace"
-                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#c2dfe3] hover:bg-[#e0fbfc] px-2.5 py-1.5 text-xs font-semibold text-[#253237]"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t.navbar.workspaceBtn}</span>
-              </Link>
-            )}
-
-          {(user.role === "ADMIN" || user.role === "DEVELOPER") &&
-            mode !== "admin" && (
-              <Link
-                id="nav-admin-link"
-                href="/admin"
-                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#e0fbfc] hover:bg-[#c2dfe3] px-2.5 py-1.5 text-xs font-semibold text-[#253237]"
-              >
-                <Activity className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">
-                  {t.navbar.adminPortalBtn}
-                </span>
-              </Link>
-            )}
-
-          {(user.role === "DEVELOPER" || user.role === "ADMIN") &&
-            mode !== "developer" && (
-              <Link
-                id="nav-developer-link"
-                href="/developer"
-                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#5c6b73]/55 hover:bg-[#5c6b73] px-2.5 py-1.5 text-xs font-semibold text-[#e0fbfc] border border-[#9db4c0]/45"
-              >
-                <Terminal className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">
-                  {isHe ? "פורטל מפתח" : "Dev Ops"}
-                </span>
-              </Link>
-            )}
 
           {mode === "workspace" && onToggleSidebar && (
             <button
@@ -172,29 +151,29 @@ export function Navbar({
               type="button"
               onClick={onToggleSidebar}
               title={sidebarOpen ? t.navbar.collapseSources : t.navbar.openSources}
-              className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#5c6b73]/35 hover:bg-[#5c6b73]/60 px-2.5 py-1.5 text-xs font-medium text-[#e0fbfc] border border-[#9db4c0]/25 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <PanelRightOpen className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
               <span className="hidden sm:inline">{t.navbar.sourcesCount(sourceCount)}</span>
             </button>
           )}
 
-          <div className="flex items-center gap-2 ps-2 border-s border-[#9db4c0]/25">
+          <div className="flex items-center gap-2 ps-2.5 border-s border-white/15">
             {user.image ? (
               <Image
                 src={user.image}
                 alt={user.name || user.username}
-                width={28}
-                height={28}
+                width={24}
+                height={24}
                 unoptimized
-                className="h-7 w-7 rounded-full object-cover border border-[#c2dfe3]/40"
+                className="h-6 w-6 rounded-full object-cover"
               />
             ) : (
-              <div className="h-7 w-7 rounded-full bg-[#c2dfe3] text-[#253237] flex items-center justify-center text-[11px] font-bold">
+              <div className="h-6 w-6 rounded-full bg-white/15 text-white flex items-center justify-center text-[10px] font-semibold">
                 {initials}
               </div>
             )}
-            <span className="hidden lg:inline text-xs font-medium text-[#e0fbfc]/90 max-w-[110px] truncate">
+            <span className="hidden lg:inline text-xs font-medium text-[#c2dfe3] max-w-[110px] truncate">
               {user.name || user.username}
             </span>
           </div>
@@ -209,16 +188,13 @@ export function Navbar({
               })
             }
             title={t.navbar.signOutTitle}
-            className="interactive-chip inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 px-2.5 py-1.5 text-xs font-medium text-[#e0fbfc] cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#9db4c0] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
             <span className="hidden sm:inline">{t.navbar.logout}</span>
           </button>
         </div>
       </div>
-
-      {/* 3px Animated Brand Gradient Bottom Border */}
-      <div className="h-[3px] w-full gradient-bar-animated" />
     </header>
   );
 }
