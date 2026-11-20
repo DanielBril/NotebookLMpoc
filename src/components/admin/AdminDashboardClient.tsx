@@ -18,6 +18,7 @@ import {
   type PeakWindowSummary,
 } from "@/components/admin/PeakHoursChart";
 import { UsersTable, type AdminUserRow } from "@/components/admin/UsersTable";
+import { PipelineInspectorPanel } from "@/components/admin/PipelineInspectorPanel";
 import { useLanguage } from "@/lib/i18n";
 
 interface FlaggedDangerousItem {
@@ -245,6 +246,8 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
         ) : (
           <>
             <KpiGrid kpis={data.kpis} />
+
+            <PipelineInspectorPanel />
 
             {/* Flagged Dangerous Texts Only Feed */}
             <div className="animate-fade-in-up stagger-2 rounded-2xl bg-white border border-[#9db4c0]/55 shadow-[0_2px_10px_rgba(37,50,55,0.05)] overflow-hidden">

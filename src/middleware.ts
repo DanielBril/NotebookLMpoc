@@ -33,8 +33,12 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // Protect authenticated API routes (documents, chat)
-  if (pathname.startsWith("/api/documents") || pathname.startsWith("/api/chat")) {
+  // Protect authenticated API routes (documents, chat, studio)
+  if (
+    pathname.startsWith("/api/documents") ||
+    pathname.startsWith("/api/chat") ||
+    pathname.startsWith("/api/studio")
+  ) {
     if (!isLoggedIn) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -65,6 +69,7 @@ export const config = {
     "/api/admin/:path*",
     "/api/documents/:path*",
     "/api/chat/:path*",
+    "/api/studio/:path*",
     "/login",
     "/signup",
   ],

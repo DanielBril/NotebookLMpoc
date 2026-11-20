@@ -6,8 +6,12 @@ import remarkGfm from "remark-gfm";
 import {
   ArrowUp,
   BookOpenCheck,
+  CheckCircle2,
+  ClipboardCheck,
   Clock,
   FileCheck2,
+  FileText,
+  GitCompareArrows,
   Loader2,
   Lock,
   ShieldAlert,
@@ -16,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { SourceDocumentItem } from "@/components/SourcesSidebar";
+import type { StudioMode } from "@/app/api/studio/route";
 import { useLanguage, type Translations } from "@/lib/i18n";
 
 export interface CitationItem {
@@ -23,6 +28,10 @@ export interface CitationItem {
   documentId: string;
   filename: string;
   snippet: string;
+  matchedQuote?: string;
+  claimText?: string;
+  confidence?: "verbatim" | "high" | "synthesized";
+  matchScore?: number;
 }
 
 export interface ChatUsageMeta {
@@ -51,7 +60,8 @@ interface ChatPanelProps {
   isSending: boolean;
   onSendQuery: (query: string) => Promise<void>;
   onClearChat: () => Promise<void>;
-  onCitationClick: (documentId: string, fallbackSnippet?: string) => void;
+  onCitationClick: (citation: CitationItem) => void;
+  onOpenStudio: (mode: StudioMode) => void;
 }
 
 const MAX_QUERY_CHARS = 2000;
@@ -96,8 +106,10 @@ export function ChatPanel({
   onSendQuery,
   onClearChat,
   onCitationClick,
+  onOpenStudio,
 }: ChatPanelProps) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHe = lang === "he";
   const [input, setInput] = useState("");
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -135,32 +147,85 @@ export function ChatPanel({
 
   return (
     <section className="flex-1 flex flex-col min-w-0 h-full bg-[#f2fafb]">
-      {/* Subtle Top Sub-bar inside Chat Panel */}
-      <div className="px-5 sm:px-7 py-2.5 bg-white/85 backdrop-blur-xs border-b border-[#9db4c0]/35 flex items-center justify-between gap-3 shrink-0">
+      {/* Subtle Top Sub-bar inside Chat Panel + Grounded Studio Actions */}
+      <div className="px-4 sm:px-7 py-2.5 bg-white/90 backdrop-blur-xs border-b border-[#9db4c0]/35 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
         <div className="flex items-center gap-2 text-xs text-[#5c6b73]">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e0fbfc] px-2.5 py-0.5 font-semibold text-[#253237] border border-[#9db4c0]/50">
             <Lock className="h-3 w-3 text-[#5c6b73]" />
             {t.chat.groundedBadge}
           </span>
-          <span className="hidden sm:inline text-[#5c6b73]">
+          <span className="hidden md:inline text-[#5c6b73]">
             {activeDocuments.length > 0
               ? t.chat.activeSourcesCount(activeDocuments.length)
               : t.chat.noActiveSources}
           </span>
         </div>
 
-        {messages.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Studio Action 1: Cross-Document Contradiction Radar */}
           <button
-            id="clear-chat-btn"
+            id="studio-contradictions-btn"
             type="button"
-            disabled={isSending}
-            onClick={() => void onClearChat()}
-            className="interactive-chip inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#c2dfe3]/40 disabled:opacity-40 cursor-pointer"
+            disabled={activeDocuments.length === 0 || isSending}
+            onClick={() => onOpenStudio("contradictions")}
+            title={
+              isHe
+                ? "הצלבת מקורות וזיהוי סתירות"
+                : "Cross-Document Contradiction & Conflict Radar"
+            }
+            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#e0fbfc] hover:bg-[#c2dfe3] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#9db4c0]/60 disabled:opacity-40 cursor-pointer"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>{t.chat.clearChat}</span>
+            <GitCompareArrows className="h-3.5 w-3.5" />
+            <span>{isHe ? "רדאר סתירות" : "Conflict Radar"}</span>
           </button>
-        )}
+
+          {/* Studio Action 2: Executive Brief (PDF) */}
+          <button
+            id="studio-brief-btn"
+            type="button"
+            disabled={activeDocuments.length === 0 || isSending}
+            onClick={() => onOpenStudio("brief")}
+            title={
+              isHe
+                ? "הפקת תקציר מנהלים מבוסס מקורות וייצוא ל-PDF"
+                : "Generate Grounded Executive Brief & Export as PDF"
+            }
+            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#c2dfe3]/65 hover:bg-[#c2dfe3] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#9db4c0]/60 disabled:opacity-40 cursor-pointer"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>{isHe ? "תקציר מנהלים (PDF)" : "Executive Brief (PDF)"}</span>
+          </button>
+
+          {/* Studio Action 3: Verification & Audit Quiz */}
+          <button
+            id="studio-quiz-btn"
+            type="button"
+            disabled={activeDocuments.length === 0 || isSending}
+            onClick={() => onOpenStudio("quiz")}
+            title={
+              isHe
+                ? "יצירת בוחן בקרה ואימות עובדות מהמקורות"
+                : "Generate Grounded Verification & Audit Quiz"
+            }
+            className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#253237] hover:bg-[#5c6b73] px-2.5 py-1 text-xs font-semibold text-[#e0fbfc] disabled:opacity-40 cursor-pointer"
+          >
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            <span>{isHe ? "בוחן בקרה" : "Audit Quiz"}</span>
+          </button>
+
+          {messages.length > 0 && (
+            <button
+              id="clear-chat-btn"
+              type="button"
+              disabled={isSending}
+              onClick={() => void onClearChat()}
+              className="interactive-chip inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#c2dfe3]/40 disabled:opacity-40 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{t.chat.clearChat}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scrollable Q&A Stream */}
@@ -298,7 +363,7 @@ export function ChatPanel({
                       )}
                     </div>
 
-                    {/* Interactive Inline Citation Pills */}
+                    {/* Interactive Inline Citation Pills with Verify-Claim Confidence */}
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="mt-3.5 pt-3 border-t border-[#9db4c0]/35">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73] mb-2">
@@ -309,18 +374,36 @@ export function ChatPanel({
                             <button
                               key={`${msg.id}-cite-${cite.index}-${cite.documentId}`}
                               type="button"
-                              onClick={() =>
-                                onCitationClick(cite.documentId, cite.snippet)
-                              }
+                              onClick={() => onCitationClick(cite)}
                               className="interactive-chip inline-flex items-center gap-1.5 rounded-full bg-[#c2dfe3]/80 hover:bg-[#9db4c0] px-2.5 py-1 text-xs font-semibold text-[#253237] border border-[#5c6b73]/25 cursor-pointer"
                             >
                               <FileCheck2 className="h-3 w-3 shrink-0" />
                               <span className="font-mono" dir="ltr">
                                 [{cite.index}]
                               </span>
-                              <span className="max-w-[180px] truncate">
+                              <span className="max-w-[165px] truncate">
                                 {cite.filename}
                               </span>
+                              {cite.confidence && (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.2 text-[9px] font-bold ${
+                                    cite.confidence === "verbatim"
+                                      ? "bg-[#253237] text-[#e0fbfc]"
+                                      : "bg-[#e0fbfc] text-[#253237]"
+                                  }`}
+                                >
+                                  <CheckCircle2 className="h-2.5 w-2.5" />
+                                  {cite.matchScore
+                                    ? `${cite.matchScore}%`
+                                    : cite.confidence === "verbatim"
+                                      ? isHe
+                                        ? "מדויק"
+                                        : "Exact"
+                                      : isHe
+                                        ? "מבוסס"
+                                        : "Verified"}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>

@@ -38,6 +38,132 @@ export interface CitationItem {
   documentId: string;
   filename: string;
   snippet: string;
+  matchedQuote?: string;
+  claimText?: string;
+  confidence?: "verbatim" | "high" | "synthesized";
+  matchScore?: number;
+}
+
+function tokenizeForMatching(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/\[\d+\]/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+}
+
+function findBestQuoteInSource(
+  answerText: string,
+  citeIndex: number,
+  sourceText: string
+): {
+  snippet: string;
+  matchedQuote: string;
+  claimText: string;
+  confidence: "verbatim" | "high" | "synthesized";
+  matchScore: number;
+} {
+  // 1. Collect all sentences/lines in the answer that reference [citeIndex]
+  const answerLines = answerText
+    .split(/\n+/)
+    .flatMap((line) => line.split(/(?<=[.!?])\s+/))
+    .map((s) => s.trim())
+    .filter((s) => s.includes(`[${citeIndex}]`));
+
+  const claimRaw =
+    answerLines.length > 0
+      ? answerLines.join(" ")
+      : answerText.slice(0, 280);
+  const claimClean = claimRaw
+    .replace(/`?\[\d+\]\s*[^\s`]*`?/g, "")
+    .replace(/^[-*•\d.)\s]+/, "")
+    .trim();
+
+  const claimTokens = tokenizeForMatching(claimClean);
+
+  // 2. Split source document into candidate passages / sentences
+  const rawSegments = sourceText
+    .split(/\n+/)
+    .flatMap((para) =>
+      para.length > 260 ? para.split(/(?<=[.!?])\s+/) : [para]
+    )
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 12);
+
+  if (rawSegments.length === 0) {
+    const fallback = sourceText.slice(0, 360).trim();
+    return {
+      snippet: fallback,
+      matchedQuote: fallback.slice(0, 180),
+      claimText: claimClean.slice(0, 220),
+      confidence: "synthesized",
+      matchScore: 0.65,
+    };
+  }
+
+  let bestSeg = rawSegments[0];
+  let bestIdx = 0;
+  let bestScore = -1;
+
+  for (let i = 0; i < rawSegments.length; i++) {
+    const seg = rawSegments[i];
+    const segLower = seg.toLowerCase();
+    const segTokens = new Set(tokenizeForMatching(seg));
+    if (segTokens.size === 0) continue;
+
+    let overlap = 0;
+    let exactNumBoost = 0;
+    for (const tok of claimTokens) {
+      if (segTokens.has(tok) || segLower.includes(tok)) {
+        overlap += /\d/.test(tok) ? 2.2 : tok.length >= 5 ? 1.4 : 1;
+        if (/\d/.test(tok)) exactNumBoost += 1;
+      }
+    }
+
+    // Check 3-word phrase continuity for verbatim detection
+    let phraseBonus = 0;
+    for (let j = 0; j + 2 < claimTokens.length; j++) {
+      const tri = `${claimTokens[j]} ${claimTokens[j + 1]} ${claimTokens[j + 2]}`;
+      if (segLower.includes(tri)) {
+        phraseBonus += 2.5;
+      }
+    }
+
+    const denom = Math.max(3, Math.min(claimTokens.length, 12));
+    const score = (overlap + phraseBonus + exactNumBoost * 0.5) / denom;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSeg = seg;
+      bestIdx = i;
+    }
+  }
+
+  // Build a surrounding context snippet containing the matched quote
+  const prevSeg = bestIdx > 0 ? rawSegments[bestIdx - 1] : "";
+  const nextSeg =
+    bestIdx + 1 < rawSegments.length ? rawSegments[bestIdx + 1] : "";
+  const combinedContext = [prevSeg, bestSeg, nextSeg]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 620);
+
+  const normalizedScore = Math.min(0.99, Math.max(0.62, bestScore));
+  const confidence: "verbatim" | "high" | "synthesized" =
+    normalizedScore >= 0.85
+      ? "verbatim"
+      : normalizedScore >= 0.72
+        ? "high"
+        : "synthesized";
+
+  return {
+    snippet: combinedContext || bestSeg,
+    matchedQuote: bestSeg.slice(0, 280),
+    claimText: claimClean.slice(0, 240),
+    confidence,
+    matchScore: Math.round(normalizedScore * 100),
+  };
 }
 
 function extractCitationsFromAnswer(
@@ -59,16 +185,21 @@ function extractCitationsFromAnswer(
     const src = orderedSources[idx - 1];
     if (!src) continue;
 
-    const snippet =
-      src.extractedText.length > 360
-        ? `${src.extractedText.slice(0, 360).trim()}…`
-        : src.extractedText;
+    const verified = findBestQuoteInSource(
+      answerText,
+      src.index,
+      src.extractedText
+    );
 
     citations.push({
       index: src.index,
       documentId: src.id,
       filename: src.filename,
-      snippet,
+      snippet: verified.snippet,
+      matchedQuote: verified.matchedQuote,
+      claimText: verified.claimText,
+      confidence: verified.confidence,
+      matchScore: verified.matchScore,
     });
   }
 

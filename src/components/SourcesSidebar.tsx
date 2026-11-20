@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import {
   AlertCircle,
   Check,
+  CheckCircle2,
   Eye,
   FileSpreadsheet,
   FileText,
@@ -45,18 +46,24 @@ export interface SourcesSummary {
   maxActiveTokens: number;
 }
 
+export interface PreviewDocState {
+  id: string;
+  filename: string;
+  excerpt: string;
+  tokenCount: number;
+  loading: boolean;
+  matchedQuote?: string;
+  claimText?: string;
+  confidence?: "verbatim" | "high" | "synthesized";
+  matchScore?: number;
+}
+
 interface SourcesSidebarProps {
   documents: SourceDocumentItem[];
   summary: SourcesSummary;
   isLoading: boolean;
   highlightedDocId: string | null;
-  previewDoc: {
-    id: string;
-    filename: string;
-    excerpt: string;
-    tokenCount: number;
-    loading: boolean;
-  } | null;
+  previewDoc: PreviewDocState | null;
   onClosePreview: () => void;
   onOpenPreview: (docId: string, fallbackSnippet?: string) => void;
   onUploadFiles: (files: File[]) => Promise<void>;
@@ -112,14 +119,28 @@ export function SourcesSidebar({
   toastWarning,
   onDismissToast,
 }: SourcesSidebarProps) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHe = lang === "he";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const highlightMarkRef = useRef<HTMLElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (previewDoc && !previewDoc.loading && previewDoc.matchedQuote) {
+      const timer = setTimeout(() => {
+        highlightMarkRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 90);
+      return () => clearTimeout(timer);
+    }
+  }, [previewDoc]);
 
   const isAtFileCap = summary.count >= MAX_FILES_PER_USER;
   const storagePercent = Math.min(
@@ -519,15 +540,39 @@ export function SourcesSidebar({
         )}
       </div>
 
-      {/* Quick Snippet Preview Drawer */}
+      {/* Quick Snippet & Verify-Claim Preview Drawer */}
       {previewDoc && (
-        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[60%] flex flex-col bg-white border-t-2 border-[#253237] shadow-[0_-14px_34px_rgba(37,50,55,0.18)]">
+        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[68%] flex flex-col bg-white border-t-2 border-[#253237] shadow-[0_-14px_34px_rgba(37,50,55,0.2)]">
           <div className="flex items-center justify-between gap-2 bg-[#c2dfe3] px-3.5 py-2.5 border-b border-[#9db4c0]/50">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">
-                {t.sources.verifiedPreviewLabel}
-              </p>
-              <p className="text-xs font-semibold text-[#253237] truncate">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">
+                  {t.sources.verifiedPreviewLabel}
+                </p>
+                {previewDoc.confidence && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      previewDoc.confidence === "verbatim"
+                        ? "bg-[#253237] text-[#e0fbfc]"
+                        : "bg-[#e0fbfc] text-[#253237] border border-[#5c6b73]/40"
+                    }`}
+                  >
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    {previewDoc.confidence === "verbatim"
+                      ? isHe
+                        ? `התאמה מדויקת (${previewDoc.matchScore ?? 95}%)`
+                        : `Verbatim Match (${previewDoc.matchScore ?? 95}%)`
+                      : previewDoc.confidence === "high"
+                        ? isHe
+                          ? `ביסוס גבוה (${previewDoc.matchScore ?? 82}%)`
+                          : `High Grounding (${previewDoc.matchScore ?? 82}%)`
+                        : isHe
+                          ? `סינתזה מבוססת (${previewDoc.matchScore ?? 72}%)`
+                          : `Synthesized (${previewDoc.matchScore ?? 72}%)`}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-semibold text-[#253237] truncate mt-0.5">
                 {previewDoc.filename}
               </p>
             </div>
@@ -539,14 +584,77 @@ export function SourcesSidebar({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="p-3.5 overflow-y-auto text-xs leading-relaxed text-[#253237]/90 font-mono whitespace-pre-wrap bg-[#f2fafb]">
+
+          {previewDoc.claimText && (
+            <div
+              dir="auto"
+              className="px-3.5 py-2 bg-[#e0fbfc]/65 border-b border-[#9db4c0]/45 text-[11px] text-[#253237]"
+            >
+              <span className="font-bold text-[#5c6b73]">
+                {isHe ? "טענה מאומתת:" : "Verified Claim:"}{" "}
+              </span>
+              <span>{previewDoc.claimText}</span>
+            </div>
+          )}
+
+          <div
+            dir="auto"
+            className="p-3.5 overflow-y-auto text-xs leading-relaxed text-[#253237]/90 font-mono whitespace-pre-wrap bg-[#f2fafb]"
+          >
             {previewDoc.loading ? (
               <div className="flex items-center gap-2 py-4 text-[#5c6b73]">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>{t.sources.loadingPreview}</span>
               </div>
             ) : (
-              previewDoc.excerpt
+              (() => {
+                const full = previewDoc.excerpt || "";
+                const quote = (previewDoc.matchedQuote ?? "").trim();
+                if (!quote) return full;
+
+                const lowerFull = full.toLowerCase();
+                const lowerQuote = quote.toLowerCase();
+                let idx = lowerFull.indexOf(lowerQuote);
+                let matchLen = quote.length;
+
+                // Fallback to matching the first 45 characters of the quote if whitespace/wrapping differs
+                if (idx === -1 && quote.length > 36) {
+                  const prefix = lowerQuote.slice(0, 42);
+                  idx = lowerFull.indexOf(prefix);
+                  matchLen = Math.min(quote.length, full.length - idx);
+                }
+
+                if (idx === -1) {
+                  return (
+                    <div className="space-y-2.5">
+                      <mark
+                        ref={highlightMarkRef}
+                        className="block rounded-lg bg-[#e0fbfc] text-[#253237] px-2.5 py-1.5 border-s-4 border-[#253237] font-semibold shadow-xs"
+                      >
+                        {quote}
+                      </mark>
+                      <div>{full}</div>
+                    </div>
+                  );
+                }
+
+                const before = full.slice(0, idx);
+                const highlighted = full.slice(idx, idx + matchLen);
+                const after = full.slice(idx + matchLen);
+
+                return (
+                  <>
+                    {before}
+                    <mark
+                      ref={highlightMarkRef}
+                      className="rounded-md bg-[#e0fbfc] text-[#253237] px-1.5 py-0.5 border-b-2 border-[#253237] font-semibold shadow-xs"
+                    >
+                      {highlighted}
+                    </mark>
+                    {after}
+                  </>
+                );
+              })()
             )}
           </div>
         </div>

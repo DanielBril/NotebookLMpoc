@@ -11,9 +11,17 @@ import {
 } from "@/components/ChatPanel";
 import {
   SourcesSidebar,
+  type PreviewDocState,
   type SourceDocumentItem,
   type SourcesSummary,
 } from "@/components/SourcesSidebar";
+import { StudioModal } from "@/components/StudioModal";
+import type {
+  AuditQuizResult,
+  ContradictionsResult,
+  ExecutiveBriefResult,
+  StudioMode,
+} from "@/app/api/studio/route";
 import { useLanguage } from "@/lib/i18n";
 import {
   MAX_ACTIVE_CONTEXT_TOKENS,
@@ -78,12 +86,13 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     blocked: boolean;
     reason: string | null;
   }>({ blocked: false, reason: null });
-  const [previewDoc, setPreviewDoc] = useState<{
-    id: string;
-    filename: string;
-    excerpt: string;
-    tokenCount: number;
-    loading: boolean;
+  const [previewDoc, setPreviewDoc] = useState<PreviewDocState | null>(null);
+  const [studioModal, setStudioModal] = useState<{
+    mode: StudioMode;
+    isLoading: boolean;
+    error: string | null;
+    data: ContradictionsResult | ExecutiveBriefResult | AuditQuizResult | null;
+    sourceIdByIndex: Record<number, string>;
   } | null>(null);
 
   const activeDocuments = useMemo(
@@ -258,7 +267,16 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     }
   }
 
-  async function handleOpenPreview(docId: string, fallbackSnippet?: string) {
+  async function handleOpenPreview(
+    docId: string,
+    fallbackSnippet?: string,
+    verifyMeta?: {
+      matchedQuote?: string;
+      claimText?: string;
+      confidence?: "verbatim" | "high" | "synthesized";
+      matchScore?: number;
+    }
+  ) {
     setSidebarOpen(true);
     setHighlightedDocId(docId);
     setTimeout(() => {
@@ -276,6 +294,10 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
       excerpt: fallbackSnippet || docMeta?.previewSnippet || "",
       tokenCount: docMeta?.tokenCount ?? 0,
       loading: true,
+      matchedQuote: verifyMeta?.matchedQuote,
+      claimText: verifyMeta?.claimText,
+      confidence: verifyMeta?.confidence,
+      matchScore: verifyMeta?.matchScore,
     });
 
     try {
@@ -300,12 +322,95 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
           excerpt: json.document.excerpt,
           tokenCount: json.document.tokenCount,
           loading: false,
+          matchedQuote: verifyMeta?.matchedQuote,
+          claimText: verifyMeta?.claimText,
+          confidence: verifyMeta?.confidence,
+          matchScore: verifyMeta?.matchScore,
         });
       } else {
         setPreviewDoc((prev) => (prev ? { ...prev, loading: false } : null));
       }
     } catch {
       setPreviewDoc((prev) => (prev ? { ...prev, loading: false } : null));
+    }
+  }
+
+  async function handleOpenStudio(mode: StudioMode) {
+    const initialMap: Record<number, string> = {};
+    const sorted = [...activeDocuments].sort((a, b) =>
+      a.id.localeCompare(b.id)
+    );
+    sorted.forEach((d, idx) => {
+      initialMap[idx + 1] = d.id;
+    });
+
+    setStudioModal({
+      mode,
+      isLoading: true,
+      error: null,
+      data: null,
+      sourceIdByIndex: initialMap,
+    });
+
+    try {
+      const res = await fetch("/api/studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, lang }),
+      });
+
+      const json = (await res.json()) as {
+        error?: string;
+        accountBlocked?: boolean;
+        reason?: string | null;
+        result?: ContradictionsResult | ExecutiveBriefResult | AuditQuizResult;
+        sources?: Array<{ index: number; id: string }>;
+      };
+
+      if (res.status === 403 && json.accountBlocked) {
+        setStudioModal(null);
+        setBlockedState({ blocked: true, reason: json.reason ?? null });
+        return;
+      }
+
+      if (!res.ok || !json.result) {
+        setStudioModal((prev) =>
+          prev
+            ? {
+                ...prev,
+                isLoading: false,
+                error: json.error || t.chat.errRequestFailed,
+              }
+            : null
+        );
+        return;
+      }
+
+      const nextMap = { ...initialMap };
+      for (const s of json.sources ?? []) {
+        nextMap[s.index] = s.id;
+      }
+
+      setStudioModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              isLoading: false,
+              data: json.result!,
+              sourceIdByIndex: nextMap,
+            }
+          : null
+      );
+    } catch {
+      setStudioModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              isLoading: false,
+              error: t.chat.errConnectionInterrupted,
+            }
+          : null
+      );
     }
   }
 
@@ -521,9 +626,15 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
           isSending={isSending}
           onSendQuery={handleSendQuery}
           onClearChat={handleClearChat}
-          onCitationClick={(docId, snippet) =>
-            void handleOpenPreview(docId, snippet)
+          onCitationClick={(cite) =>
+            void handleOpenPreview(cite.documentId, cite.snippet, {
+              matchedQuote: cite.matchedQuote,
+              claimText: cite.claimText,
+              confidence: cite.confidence,
+              matchScore: cite.matchScore,
+            })
           }
+          onOpenStudio={(mode) => void handleOpenStudio(mode)}
         />
 
         {/* Desktop collapsible & Mobile overlay sidebar */}
@@ -553,6 +664,28 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
           </div>
         )}
       </div>
+
+      {studioModal && (
+        <StudioModal
+          mode={studioModal.mode}
+          data={studioModal.data}
+          isLoading={studioModal.isLoading}
+          error={studioModal.error}
+          sourceIdByIndex={studioModal.sourceIdByIndex}
+          onClose={() => setStudioModal(null)}
+          onInspectSource={(sourceIndex, quote) => {
+            const docId = studioModal.sourceIdByIndex[sourceIndex];
+            if (docId) {
+              setStudioModal(null);
+              void handleOpenPreview(docId, quote, {
+                matchedQuote: quote,
+                confidence: "verbatim",
+                matchScore: 95,
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
