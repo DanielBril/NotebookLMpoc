@@ -136,29 +136,42 @@ export function ChatPanel({
 
   return (
     <section className="flex-1 flex flex-col min-w-0 h-full bg-white">
-      {/* Level 2 (Secondary Context): Minimal Studio & Grounding Sub-bar */}
-      <div className="px-4 sm:px-8 py-2.5 bg-white border-b border-[#253237]/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2 text-xs text-[#5c6b73]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#253237]" />
-          <span className="font-medium text-[#253237]">
+      {/* Level 2 (Secondary Context): Grounding Indicator + Color-Coded Studio Actions */}
+      <div className="px-4 sm:px-8 py-2.5 bg-slate-50/70 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div
+          dir={isHe ? "rtl" : "ltr"}
+          className="flex items-center gap-2 text-xs text-slate-600"
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              activeDocuments.length > 0 ? "bg-emerald-500" : "bg-amber-400"
+            }`}
+          />
+          <span className="font-semibold text-slate-800">
             {t.chat.groundedBadge}
           </span>
-          <span className="text-[#9db4c0]">·</span>
-          <span>
+          <span className="text-slate-300">·</span>
+          <span
+            className={
+              activeDocuments.length > 0
+                ? "text-emerald-700 font-medium"
+                : "text-amber-700 font-medium"
+            }
+          >
             {activeDocuments.length > 0
               ? t.chat.activeSourcesCount(activeDocuments.length)
               : t.chat.noActiveSources}
           </span>
         </div>
 
-        {/* Secondary Ghost Actions — No filled dark background competing with primary CTA */}
-        <div className="flex flex-wrap items-center gap-1">
+        {/* Semantic Secondary Actions */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             id="studio-contradictions-btn"
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("contradictions")}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/90 disabled:opacity-35 transition-colors cursor-pointer"
           >
             {isHe ? "רדאר סתירות" : "Conflict Radar"}
           </button>
@@ -168,7 +181,7 @@ export function ChatPanel({
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("brief")}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/90 disabled:opacity-35 transition-colors cursor-pointer"
           >
             {isHe ? "תקציר מנהלים (PDF)" : "Executive Brief (PDF)"}
           </button>
@@ -178,20 +191,20 @@ export function ChatPanel({
             type="button"
             disabled={activeDocuments.length === 0 || isSending}
             onClick={() => onOpenStudio("quiz")}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] border border-transparent hover:border-[#253237]/12 disabled:opacity-35 transition-colors cursor-pointer"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/90 disabled:opacity-35 transition-colors cursor-pointer"
           >
             {isHe ? "בוחן בקרה" : "Audit Quiz"}
           </button>
 
           {messages.length > 0 && (
             <>
-              <span className="mx-1 h-3.5 w-px bg-[#253237]/10" />
+              <span className="mx-1 h-3.5 w-px bg-slate-200" />
               <button
                 id="clear-chat-btn"
                 type="button"
                 disabled={isSending}
                 onClick={() => void onClearChat()}
-                className="rounded-md px-2 py-1 text-xs text-[#5c6b73] hover:text-[#253237] hover:bg-[#f8fafb] disabled:opacity-35 transition-colors cursor-pointer"
+                className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:text-rose-700 hover:bg-rose-50 disabled:opacity-35 transition-colors cursor-pointer"
               >
                 {t.chat.clearChat}
               </button>
@@ -204,19 +217,24 @@ export function ChatPanel({
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8">
         <div className="mx-auto max-w-3xl">
           {messages.length === 0 ? (
-            <div className="py-14 sm:py-20 space-y-8">
+            <div
+              dir={isHe ? "rtl" : "ltr"}
+              className="py-12 sm:py-16 space-y-8"
+            >
               <div className="space-y-2.5 max-w-xl">
-                <p className="text-[11px] font-mono uppercase tracking-widest text-[#5c6b73]">
-                  {isHe ? "סינתזה מבוססת מקורות בלבד" : "Strictly Source-Grounded Synthesis"}
+                <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
+                  {isHe
+                    ? "סינתזה מבוססת מקורות בלבד"
+                    : "Strictly Source-Grounded Synthesis"}
                 </p>
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#253237]">
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
                   {totalDocumentsCount === 0
                     ? t.chat.emptyTitleNoDocs
                     : activeDocuments.length === 0
                       ? t.chat.emptyTitleNoActive
                       : t.chat.emptyTitleReady}
                 </h2>
-                <p className="text-sm leading-relaxed text-[#5c6b73]">
+                <p className="text-sm leading-relaxed text-slate-600">
                   {totalDocumentsCount === 0
                     ? t.chat.emptyDescNoDocs
                     : activeDocuments.length === 0
@@ -226,22 +244,22 @@ export function ChatPanel({
               </div>
 
               {starterChips.length > 0 && (
-                <div className="space-y-2 border-t border-[#253237]/10 pt-5">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-[#5c6b73]">
+                <div className="space-y-2 border-t border-slate-200 pt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t.chat.suggestedHeading}
                   </p>
-                  <div className="divide-y divide-[#253237]/8">
+                  <div className="divide-y divide-slate-100">
                     {starterChips.map((chip, idx) => (
                       <button
                         key={idx}
                         type="button"
                         disabled={isSending}
                         onClick={() => void onSendQuery(chip)}
-                        className="w-full py-2.5 text-start text-sm text-[#253237] hover:text-[#5c6b73] flex items-center justify-between gap-4 transition-colors cursor-pointer group"
+                        className="w-full py-3 text-start text-sm text-slate-800 hover:text-teal-700 flex items-center justify-between gap-4 transition-colors cursor-pointer group"
                       >
                         <span className="truncate">{chip}</span>
-                        <span className="text-xs font-mono text-[#9db4c0] group-hover:text-[#253237] shrink-0">
-                          →
+                        <span className="text-xs font-mono text-slate-400 group-hover:text-teal-600 shrink-0">
+                          {isHe ? "←" : "→"}
                         </span>
                       </button>
                     ))}
@@ -250,18 +268,21 @@ export function ChatPanel({
               )}
             </div>
           ) : (
-            <div className="divide-y divide-[#253237]/8">
+            <div className="divide-y divide-slate-100">
               {messages.map((msg) => {
-                // User Question — High-contrast editorial prompt row
+                // User Question
                 if (msg.role === "user") {
                   return (
                     <div key={msg.id} className="py-5 first:pt-0">
-                      <p className="text-[11px] font-mono uppercase tracking-wider text-[#5c6b73] mb-1">
+                      <p
+                        dir={isHe ? "rtl" : "ltr"}
+                        className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mb-1"
+                      >
                         {isHe ? "שאלה" : "Question"}
                       </p>
                       <div
                         dir="auto"
-                        className="text-base font-medium leading-relaxed text-[#253237] whitespace-pre-wrap"
+                        className="text-base font-medium leading-relaxed text-slate-900 whitespace-pre-wrap"
                       >
                         {msg.content}
                       </div>
@@ -269,20 +290,23 @@ export function ChatPanel({
                   );
                 }
 
-                // Guardrail / Security Alert Row
+                // Guardrail / Security Blocked Alert (Rose)
                 if (msg.role === "system_alert") {
                   return (
                     <div key={msg.id} className="py-5">
-                      <div className="rounded-lg bg-[#f8fafb] border-s-2 border-[#253237] px-4 py-3 text-sm text-[#253237]">
+                      <div
+                        dir={isHe ? "rtl" : "ltr"}
+                        className="rounded-lg bg-rose-50 border border-rose-200 border-s-4 border-s-rose-600 px-4 py-3.5 text-sm text-rose-950"
+                      >
                         <div className="flex items-start gap-2.5">
-                          <ShieldAlert className="h-4 w-4 mt-0.5 text-[#253237] shrink-0" />
+                          <ShieldAlert className="h-4 w-4 mt-0.5 text-rose-600 shrink-0" />
                           <div className="space-y-1">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-[#253237]">
+                            <p className="text-xs font-bold uppercase tracking-wider text-rose-700">
                               {t.chat.guardrailTriggeredTitle}
                             </p>
                             <p
                               dir="auto"
-                              className="text-sm leading-relaxed text-[#5c6b73]"
+                              className="text-sm leading-relaxed text-rose-900"
                             >
                               {msg.content}
                             </p>
@@ -293,13 +317,26 @@ export function ChatPanel({
                   );
                 }
 
-                // Assistant Grounded Response — Clean editorial prose without heavy outer card box
+                // Assistant Grounded Response (Emerald verified vs. Amber no-context refusal)
                 const isNoContextRefusal = checkNoContextRefusal(msg.content);
 
                 return (
                   <div key={msg.id} className="py-6">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[11px] font-mono uppercase tracking-wider text-[#5c6b73]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${
+                          isNoContextRefusal
+                            ? "text-amber-700"
+                            : "text-emerald-700"
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            isNoContextRefusal
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                          }`}
+                        />
                         {isNoContextRefusal
                           ? t.chat.strictRefusalBadge
                           : isHe
@@ -311,14 +348,14 @@ export function ChatPanel({
                       {msg.usage && !msg.isStreaming && (
                         <div
                           dir="ltr"
-                          className="flex items-center gap-2.5 text-[11px] font-mono text-[#9db4c0]"
+                          className="flex items-center gap-2.5 text-[11px] font-mono text-slate-400"
                         >
                           <span>{msg.usage.latencyMs}ms</span>
                           {msg.usage.ttftMs > 0 && (
                             <span>TTFT {msg.usage.ttftMs}ms</span>
                           )}
                           {msg.usage.cachedTokens > 0 && (
-                            <span className="text-[#5c6b73]">
+                            <span className="text-teal-700 font-medium">
                               {t.chat.cachedTok(
                                 msg.usage.cachedTokens.toLocaleString()
                               )}
@@ -330,26 +367,31 @@ export function ChatPanel({
 
                     <div
                       dir="auto"
-                      className={`contextlm-prose ${
-                        isNoContextRefusal ? "text-[#5c6b73] italic" : ""
-                      }`}
+                      className={
+                        isNoContextRefusal
+                          ? "rounded-lg bg-amber-50/80 border border-amber-200/90 border-s-4 border-s-amber-500 px-4 py-3 text-sm leading-relaxed text-amber-950"
+                          : "contextlm-prose"
+                      }
                     >
                       {msg.content ? (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
                       ) : (
-                        <span className="inline-flex items-center gap-2 text-xs text-[#5c6b73]">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#253237]" />
+                        <span className="inline-flex items-center gap-2 text-xs text-slate-500">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-600" />
                           <span>{t.chat.synthesizing}</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Level 2 (Secondary Context): Clean Citation Footnotes */}
+                    {/* Level 2 (Secondary Context): Emerald Verified Citations */}
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] font-mono text-[#5c6b73] me-1">
+                      <div
+                        dir={isHe ? "rtl" : "ltr"}
+                        className="mt-4 flex flex-wrap items-center gap-1.5"
+                      >
+                        <span className="text-[11px] font-medium text-slate-500 me-1">
                           {t.chat.verifiedCitationsLabel}:
                         </span>
                         {msg.citations.map((cite) => (
@@ -357,16 +399,19 @@ export function ChatPanel({
                             key={`${msg.id}-cite-${cite.index}-${cite.documentId}`}
                             type="button"
                             onClick={() => onCitationClick(cite)}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-[#f8fafb] hover:bg-[#e0fbfc]/60 px-2.5 py-1 text-xs font-medium text-[#253237] border border-[#253237]/12 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900 border border-emerald-200/90 transition-colors cursor-pointer"
                           >
-                            <span className="font-mono text-[11px] font-semibold text-[#5c6b73]" dir="ltr">
+                            <span
+                              className="font-mono text-[11px] font-semibold text-emerald-700"
+                              dir="ltr"
+                            >
                               [{cite.index}]
                             </span>
                             <span className="max-w-[180px] truncate">
                               {cite.filename}
                             </span>
                             {cite.matchScore && (
-                              <span className="font-mono text-[10px] text-[#5c6b73]">
+                              <span className="font-mono text-[10px] text-emerald-700">
                                 · {cite.matchScore}%
                               </span>
                             )}
@@ -384,9 +429,9 @@ export function ChatPanel({
       </div>
 
       {/* Level 1 Primary Action: Bottom Sticky Input Composer */}
-      <div className="border-t border-[#253237]/10 bg-white px-4 sm:px-8 py-4 shrink-0">
+      <div className="border-t border-slate-200 bg-white px-4 sm:px-8 py-4 shrink-0">
         <div className="mx-auto max-w-3xl">
-          <div className="rounded-xl bg-[#f8fafb] border border-[#253237]/18 focus-within:border-[#253237] focus-within:bg-white transition-colors px-3.5 py-2.5">
+          <div className="rounded-xl bg-slate-50 border border-slate-300 focus-within:border-teal-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/15 transition-all px-3.5 py-2.5">
             <textarea
               ref={textareaRef}
               id="chat-query-input"
@@ -405,20 +450,20 @@ export function ChatPanel({
                   ? t.chat.inputPlaceholderActive
                   : t.chat.inputPlaceholderEmpty
               }
-              className="w-full resize-none bg-transparent py-1 text-sm text-[#253237] placeholder:text-[#5c6b73]/70 focus:outline-none max-h-40"
+              className="w-full resize-none bg-transparent py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none max-h-40"
             />
 
-            <div className="mt-2 flex items-center justify-between gap-2 pt-2 border-t border-[#253237]/8">
-              <div className="flex items-center gap-3 text-[11px] text-[#5c6b73]">
+            <div className="mt-2 flex items-center justify-between gap-2 pt-2 border-t border-slate-200/80">
+              <div className="flex items-center gap-3 text-[11px] text-slate-500">
                 <span>{t.chat.strictlySourcesOnly}</span>
-                <span className="text-[#9db4c0]">·</span>
+                <span className="text-slate-300">·</span>
                 <span className="font-mono" dir="ltr">
                   {input.length.toLocaleString()} /{" "}
                   {MAX_QUERY_CHARS.toLocaleString()}
                 </span>
               </div>
 
-              {/* Single Primary Accent Action */}
+              {/* Single Teal Primary Action */}
               <button
                 id="chat-send-btn"
                 type="button"

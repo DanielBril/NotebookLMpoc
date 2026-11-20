@@ -158,8 +158,8 @@ export function UsersTable({
                     onClick={() => setStatusFilter(tab)}
                     className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
                       active
-                        ? "bg-[#253237]/8 text-[#253237] font-semibold"
-                        : "text-[#5c6b73] hover:text-[#253237]"
+                        ? "bg-teal-600 text-white font-semibold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     {label}
@@ -170,23 +170,23 @@ export function UsersTable({
 
             {/* Search Input */}
             <div className="relative flex-1 sm:flex-none sm:w-56">
-              <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#9db4c0]" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
                 id="admin-users-search"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.admin.searchPlaceholder}
-                className="w-full rounded-lg bg-[#f8fafb] ps-8 pe-3 py-1.5 text-xs text-[#253237] placeholder:text-[#5c6b73]/65 border border-[#253237]/15 focus:outline-none focus:border-[#253237] focus:bg-white transition-colors"
+                className="w-full rounded-lg bg-slate-50 ps-8 pe-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:border-teal-600 focus:bg-white transition-colors"
               />
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto border-t border-[#253237]/10">
+        <div className="overflow-x-auto border-t border-slate-200">
           <table className="w-full text-start border-collapse text-xs">
             <thead>
-              <tr className="text-[11px] font-medium text-[#5c6b73] border-b border-[#253237]/10">
+              <tr className="text-[11px] font-medium text-slate-500 border-b border-slate-200">
                 <th className="py-2.5 pe-4 text-start">
                   <button
                     type="button"
@@ -271,12 +271,12 @@ export function UsersTable({
                 <th className="py-2.5 ps-3 text-end">{t.admin.colActions}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#253237]/8">
+            <tbody className="divide-y divide-slate-100">
               {filteredAndSorted.length === 0 ? (
                 <tr>
                   <td
                     colSpan={10}
-                    className="py-10 text-center text-sm text-[#5c6b73]"
+                    className="py-10 text-center text-sm text-slate-500"
                   >
                     {t.admin.noMatchingUsers}
                   </td>
@@ -292,21 +292,26 @@ export function UsersTable({
                   return (
                     <tr
                       key={u.id}
-                      className={`hover:bg-[#f8fafb] transition-colors ${
-                        u.isBlocked ? "opacity-75" : ""
+                      className={`hover:bg-slate-50 transition-colors ${
+                        u.isBlocked ? "bg-rose-50/30" : ""
                       }`}
                     >
                       <td className="py-3 pe-4">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-[#253237] truncate">
+                          <p className="text-sm font-medium text-slate-900 truncate">
                             {u.name}
                             {(u.role === "ADMIN" || u.role === "DEVELOPER") && (
-                              <span className="ms-2 font-mono text-[10px] uppercase text-[#5c6b73]">
-                                {u.role === "ADMIN" ? t.navbar.adminBadge : "DEV"}
+                              <span className="ms-2 font-mono text-[10px] uppercase text-teal-700 font-semibold">
+                                {u.role === "ADMIN"
+                                  ? t.navbar.adminBadge
+                                  : "DEV"}
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] font-mono text-[#9db4c0]" dir="ltr">
+                          <p
+                            className="text-[11px] font-mono text-slate-400"
+                            dir="ltr"
+                          >
                             @{u.username} ·{" "}
                             {u.provider === "google"
                               ? t.admin.providerGoogle
@@ -318,37 +323,39 @@ export function UsersTable({
                       <td className="py-3 px-3 whitespace-nowrap">
                         {u.isBlocked ? (
                           <div>
-                            <span className="font-semibold text-[#253237]">
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-rose-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                               {t.admin.statusBlocked}
                             </span>
                             {u.blockedReason && (
                               <p
                                 title={u.blockedReason}
-                                className="max-w-[140px] truncate text-[10px] text-[#9db4c0]"
+                                className="max-w-[140px] truncate text-[10px] text-rose-500"
                               >
                                 {u.blockedReason}
                               </p>
                             )}
                           </div>
                         ) : (
-                          <span className="text-[#5c6b73]">
+                          <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                             {t.admin.statusActive}
                           </span>
                         )}
                       </td>
 
                       <td className="py-3 px-3 font-mono">
-                        <span className="font-medium text-[#253237]">
+                        <span className="font-medium text-slate-900">
                           {u.activeFiles}
                         </span>
-                        <span className="text-[#9db4c0]">/10</span>
-                        <p className="text-[10px] text-[#9db4c0]">
+                        <span className="text-slate-400">/10</span>
+                        <p className="text-[10px] text-slate-400">
                           {t.admin.totalFilesSub(u.totalFiles)}
                         </p>
                       </td>
 
                       <td className="py-3 px-3 font-mono">
-                        <span className="font-medium text-[#253237]">
+                        <span className="font-medium text-slate-900">
                           {u.validQueries}
                         </span>
                         {u.dangerousFlags > 0 && (
@@ -356,7 +363,7 @@ export function UsersTable({
                             title={t.admin.dangerousFlagsTooltip(
                               u.dangerousFlags
                             )}
-                            className="ms-1.5 text-[11px] font-semibold text-[#253237]"
+                            className="ms-1.5 text-[11px] font-bold text-rose-600"
                           >
                             ({u.dangerousFlags}!)
                           </span>
@@ -364,41 +371,41 @@ export function UsersTable({
                       </td>
 
                       <td
-                        className="py-3 px-3 text-end font-mono text-[#253237]"
+                        className="py-3 px-3 text-end font-mono text-slate-800"
                         title={t.admin.cachedTooltip(
                           u.cachedTokens.toLocaleString()
                         )}
                       >
                         <div>{u.promptTokens.toLocaleString()}</div>
                         {u.cachedTokens > 0 && (
-                          <div className="text-[10px] text-[#9db4c0]">
+                          <div className="text-[10px] text-teal-700">
                             {t.admin.cachedSub(u.cachedTokens.toLocaleString())}
                           </div>
                         )}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono text-[#253237]">
+                      <td className="py-3 px-3 text-end font-mono text-slate-800">
                         {u.completionTokens.toLocaleString()}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono font-semibold text-[#253237]">
+                      <td className="py-3 px-3 text-end font-mono font-semibold text-slate-900">
                         {u.totalTokens.toLocaleString()}
                       </td>
 
                       <td
                         dir="ltr"
-                        className="py-3 px-3 text-end font-mono font-medium text-[#253237]"
+                        className="py-3 px-3 text-end font-mono font-medium text-slate-900"
                       >
                         {formatUsd(u.estimatedCostUsd)}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono text-[#9db4c0] whitespace-nowrap">
+                      <td className="py-3 px-3 text-end font-mono text-slate-400 whitespace-nowrap">
                         {formatRelativeTime(u.lastActiveAt, t)}
                       </td>
 
                       <td className="py-3 ps-3 text-end whitespace-nowrap">
                         {isSelfOrAdmin ? (
-                          <span className="text-[11px] text-[#9db4c0]">
+                          <span className="text-[11px] text-slate-400">
                             {t.admin.protectedAdmin}
                           </span>
                         ) : u.isBlocked ? (
@@ -407,7 +414,7 @@ export function UsersTable({
                             type="button"
                             disabled={isBusy}
                             onClick={() => void onToggleBlockUser(u.id, false)}
-                            className="inline-flex items-center gap-1 rounded-md border border-[#253237]/20 px-2.5 py-1 text-xs font-medium text-[#253237] hover:border-[#253237] disabled:opacity-40 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 px-2.5 py-1 text-xs font-semibold text-emerald-700 disabled:opacity-40 transition-colors cursor-pointer"
                           >
                             {isBusy && (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -427,7 +434,7 @@ export function UsersTable({
                               setBlockModalUser(u);
                               setBlockReason("");
                             }}
-                            className="inline-flex items-center gap-1 rounded-md border border-[#253237]/20 px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:border-[#253237] disabled:opacity-40 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white hover:border-rose-600 px-2.5 py-1 text-xs font-semibold text-rose-700 disabled:opacity-40 transition-colors cursor-pointer"
                           >
                             {isBusy && (
                               <Loader2 className="h-3 w-3 animate-spin" />

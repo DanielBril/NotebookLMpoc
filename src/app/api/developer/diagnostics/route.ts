@@ -78,6 +78,7 @@ export async function GET() {
           latencyMs: true,
           status: true,
           guardrailReason: true,
+          flaggedText: true,
           hourOfDay: true,
           dayOfWeek: true,
           createdAt: true,
@@ -222,6 +223,26 @@ export async function GET() {
       (l.level === LogLevel.ERROR || l.level === LogLevel.CRITICAL)
   ).length;
 
+  const usernameById = new Map<string, string>(
+    users.map((u) => [u.id, u.username])
+  );
+
+  const decisionLogs = usageLogs
+    .filter((l) => l.status !== QueryStatus.SUCCESS)
+    .slice(0, 80)
+    .map((l) => ({
+      id: l.id,
+      userId: l.userId,
+      username: usernameById.get(l.userId) ?? "unknown",
+      status: l.status,
+      model: l.model,
+      reason: l.guardrailReason,
+      flaggedText: l.flaggedText,
+      promptTokens: l.promptTokens,
+      latencyMs: l.latencyMs,
+      createdAt: l.createdAt.toISOString(),
+    }));
+
   const mem = process.memoryUsage();
 
   return NextResponse.json({
@@ -281,6 +302,7 @@ export async function GET() {
       totalDocumentTokens,
       formatBreakdown,
     },
+    decisionLogs,
     systemLogs: systemLogs.map((l) => ({
       id: l.id,
       level: l.level,

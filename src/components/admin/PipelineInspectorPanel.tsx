@@ -76,12 +76,12 @@ export function PipelineInspectorPanel() {
   }
 
   return (
-    <section className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
-          {isHe ? "בודק צינור האבטחה" : "Security pipeline inspector"}
+    <section className="space-y-5 border-t border-slate-200 pt-8">
+      <div dir={isHe ? "rtl" : "ltr"}>
+        <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+          {isHe ? "בודק צינור האבטחה (4 שכבות)" : "Security Pipeline Inspector (4 Layers)"}
         </h2>
-        <p className="text-sm text-[#5c6b73] max-w-2xl">
+        <p className="text-sm text-slate-500 max-w-2xl mt-0.5">
           {isHe
             ? "הריצו פרומפט דרך 4 שכבות ההגנה. סביבת בדיקה מבודדת, ללא גישה לנתוני משתמשים."
             : "Trace a prompt through all four guardrail layers. Isolated sandbox, no access to user data."}
@@ -100,22 +100,27 @@ export function PipelineInspectorPanel() {
               ? "הזינו פרומפט או ניסיון הזרקה…"
               : "Enter a prompt or injection payload…"
           }
-          className="flex-1 rounded-lg bg-[#f8fafb] px-3.5 py-2 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#253237]/18 focus:outline-none focus:border-[#253237] focus:bg-white transition-colors font-mono"
+          className="flex-1 rounded-lg bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 border border-slate-300 focus:outline-none focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-500/15 transition-all font-mono"
         />
         <button
           id="admin-pipeline-run-btn"
           type="button"
           disabled={isRunning || !testPrompt.trim()}
           onClick={() => void runTrace(testPrompt)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#253237]/20 px-4 py-2 text-sm font-medium text-[#253237] hover:border-[#253237] hover:bg-[#f8fafb] disabled:opacity-40 shrink-0 transition-colors cursor-pointer"
+          className="btn-jet inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shrink-0 cursor-pointer"
         >
           {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           {isHe ? "הרץ בדיקה" : "Run trace"}
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-        <span className="text-[#9db4c0]">{isHe ? "דוגמאות:" : "Presets:"}</span>
+      <div
+        dir={isHe ? "rtl" : "ltr"}
+        className="flex flex-wrap items-center gap-2 text-xs"
+      >
+        <span className="text-slate-400 font-medium">
+          {isHe ? "תרחישים:" : "Presets:"}
+        </span>
         {presets.map((p, idx) => (
           <button
             key={idx}
@@ -124,7 +129,7 @@ export function PipelineInspectorPanel() {
               setTestPrompt(p.prompt);
               void runTrace(p.prompt);
             }}
-            className="text-[#5c6b73] hover:text-[#253237] underline underline-offset-2 decoration-[#253237]/20 hover:decoration-[#253237] cursor-pointer"
+            className="rounded-md bg-slate-100 hover:bg-teal-50 hover:text-teal-800 px-2.5 py-1 text-slate-600 transition-colors cursor-pointer"
           >
             {isHe ? p.labelHe : p.labelEn}
           </button>
@@ -134,10 +139,13 @@ export function PipelineInspectorPanel() {
       {trace && (
         <div className="space-y-4 pt-2">
           <div
-            dir="ltr"
-            className="flex flex-wrap items-baseline justify-between gap-2 border-t border-[#253237]/10 pt-4"
+            className={`rounded-lg border px-4 py-3 flex flex-wrap items-center justify-between gap-2 ${
+              trace.overallVerdict === "BLOCKED"
+                ? "bg-rose-50 border-rose-200 text-rose-900"
+                : "bg-emerald-50 border-emerald-200 text-emerald-900"
+            }`}
           >
-            <p className="text-base font-semibold text-[#253237]">
+            <p className="text-sm font-semibold">
               {trace.overallVerdict === "BLOCKED"
                 ? isHe
                   ? "נחסם על ידי צינור ההגנה"
@@ -146,38 +154,42 @@ export function PipelineInspectorPanel() {
                   ? "אושר להזרמה מבוססת מקורות"
                   : "Allowed for grounded synthesis"}
             </p>
-            <p className="font-mono text-[11px] text-[#5c6b73]">
-              nonce {trace.nonce} · lang {trace.detectedQueryLanguage.toUpperCase()} ·{" "}
+            <p dir="ltr" className="font-mono text-[11px] opacity-80">
+              nonce {trace.nonce} · lang{" "}
+              {trace.detectedQueryLanguage.toUpperCase()} ·{" "}
               {trace.totalInspectionMs}ms
             </p>
           </div>
 
-          <ol className="divide-y divide-[#253237]/8">
+          <ol className="divide-y divide-slate-100 border-t border-slate-200">
             {trace.layers.map((layer) => {
               const isBlocked = layer.status === "BLOCKED";
+              const isTriggered = layer.status === "TRIGGERED";
+              const badgeStyle = isBlocked
+                ? "bg-rose-100 text-rose-800"
+                : isTriggered
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-emerald-100 text-emerald-800";
+
               return (
                 <li key={layer.layer} className="py-3.5 space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium text-[#253237]">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-slate-900">
                       {layer.title}
                     </p>
-                    <p
+                    <span
                       dir="ltr"
-                      className={`font-mono text-[11px] ${
-                        isBlocked
-                          ? "font-bold text-[#253237]"
-                          : "text-[#5c6b73]"
-                      }`}
+                      className={`rounded px-2 py-0.5 font-mono text-[11px] font-semibold ${badgeStyle}`}
                     >
                       {layer.status} · {layer.latencyMs}ms
-                    </p>
+                    </span>
                   </div>
-                  <p className="text-xs leading-relaxed text-[#5c6b73]">
+                  <p className="text-xs leading-relaxed text-slate-600">
                     {layer.summary}
                   </p>
                   <pre
                     dir="ltr"
-                    className="rounded bg-[#f8fafb] p-2.5 text-[11px] font-mono text-[#253237] overflow-x-auto whitespace-pre-wrap break-words"
+                    className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 text-[11px] font-mono text-slate-800 overflow-x-auto whitespace-pre-wrap break-words"
                   >
                     {layer.technicalDetail}
                   </pre>

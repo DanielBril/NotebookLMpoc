@@ -9,6 +9,7 @@ export interface InputFilterResult {
   layer?: string;
   rule?: string;
   reason?: string;
+  matchedFragment?: string;
   sanitizedSnippet: string;
 }
 
@@ -126,15 +127,19 @@ const OUT_OF_SCOPE_RULES: SignatureRule[] = [
   },
 ];
 
-function checkRulesAgainstText(text: string): SignatureRule | null {
+function checkRulesAgainstText(
+  text: string
+): { rule: SignatureRule; matchedFragment: string } | null {
   for (const rule of INJECTION_AND_DANGEROUS_RULES) {
-    if (rule.pattern.test(text)) {
-      return rule;
+    const match = text.match(rule.pattern);
+    if (match) {
+      return { rule, matchedFragment: match[0].slice(0, 120) };
     }
   }
   for (const rule of OUT_OF_SCOPE_RULES) {
-    if (rule.pattern.test(text)) {
-      return rule;
+    const match = text.match(rule.pattern);
+    if (match) {
+      return { rule, matchedFragment: match[0].slice(0, 120) };
     }
   }
   return null;
@@ -144,7 +149,9 @@ function checkRulesAgainstText(text: string): SignatureRule | null {
  * Detects Base64-encoded instruction smuggling (e.g. a user pasting encoded
  * "ignore previous instructions" strings to evade plain-text filters).
  */
-function inspectBase64Smuggling(query: string): SignatureRule | null {
+function inspectBase64Smuggling(
+  query: string
+): { rule: SignatureRule; matchedFragment: string } | null {
   const candidates = query.match(/[A-Za-z0-9+/]{24,}={0,2}/g);
   if (!candidates) return null;
 
@@ -153,13 +160,17 @@ function inspectBase64Smuggling(query: string): SignatureRule | null {
       const decoded = Buffer.from(token, "base64").toString("utf-8");
       if (/^[\x20-\x7E\r\n\t]+$/.test(decoded) && decoded.length >= 16) {
         const hit = checkRulesAgainstText(decoded);
-        if (hit && hit.status === "BLOCKED_INJECTION") {
+        if (hit && hit.rule.status === "BLOCKED_INJECTION") {
           return {
-            id: "L1_BASE64_SMUGGLING",
-            pattern: hit.pattern,
-            status: "BLOCKED_INJECTION",
-            messageHe: "זוהה ונחסם מטען הזרקה מקודד ב-Base64 (שכבה 1).",
-            messageEn: "Encoded Base64 prompt-injection payload detected and blocked (Layer 1).",
+            rule: {
+              id: "L1_BASE64_SMUGGLING",
+              pattern: hit.rule.pattern,
+              status: "BLOCKED_INJECTION",
+              messageHe: "זוהה ונחסם מטען הזרקה מקודד ב-Base64 (שכבה 1).",
+              messageEn:
+                "Encoded Base64 prompt-injection payload detected and blocked (Layer 1).",
+            },
+            matchedFragment: `base64 -> "${hit.matchedFragment}"`,
           };
         }
       }
@@ -172,7 +183,8 @@ function inspectBase64Smuggling(query: string): SignatureRule | null {
 
 export function sanitizeAuditSnippet(input: string, maxLen = 280): string {
   const collapsed = input.replace(/\s+/g, " ").trim();
-  const truncated = collapsed.length > maxLen ? `${collapsed.slice(0, maxLen)}…` : collapsed;
+  const truncated =
+    collapsed.length > maxLen ? `${collapsed.slice(0, maxLen)}…` : collapsed;
   return escapeXml(truncated);
 }
 
@@ -189,11 +201,16 @@ export function inspectUserInput(
   if (directHit) {
     return {
       blocked: true,
-      isDangerous: directHit.status === "BLOCKED_INJECTION",
-      status: directHit.status,
-      layer: lang === "he" ? "שכבה 1 (סינון דטרמיניסטי)" : "Layer 1 (Deterministic Pre-Filter)",
-      rule: directHit.id,
-      reason: lang === "he" ? directHit.messageHe : directHit.messageEn,
+      isDangerous: directHit.rule.status === "BLOCKED_INJECTION",
+      status: directHit.rule.status,
+      layer:
+        lang === "he"
+          ? "שכבה 1 (סינון דטרמיניסטי)"
+          : "Layer 1 (Deterministic Pre-Filter)",
+      rule: directHit.rule.id,
+      reason:
+        lang === "he" ? directHit.rule.messageHe : directHit.rule.messageEn,
+      matchedFragment: directHit.matchedFragment,
       sanitizedSnippet,
     };
   }
@@ -203,10 +220,15 @@ export function inspectUserInput(
     return {
       blocked: true,
       isDangerous: true,
-      status: base64Hit.status,
-      layer: lang === "he" ? "שכבה 1 (זיהוי Base64)" : "Layer 1 (Base64 Smuggling Detector)",
-      rule: base64Hit.id,
-      reason: lang === "he" ? base64Hit.messageHe : base64Hit.messageEn,
+      status: base64Hit.rule.status,
+      layer:
+        lang === "he"
+          ? "שכבה 1 (זיהוי Base64)"
+          : "Layer 1 (Base64 Smuggling Detector)",
+      rule: base64Hit.rule.id,
+      reason:
+        lang === "he" ? base64Hit.rule.messageHe : base64Hit.rule.messageEn,
+      matchedFragment: base64Hit.matchedFragment,
       sanitizedSnippet,
     };
   }
@@ -218,46 +240,54 @@ export function inspectUserInput(
   };
 }
 
+const BORDERLINE_SIGNALS = [
+  "instruction",
+  "prompt",
+  "system",
+  "override",
+  "ignore",
+  "pretend",
+  "hypothetical",
+  "roleplay",
+  "secret",
+  "password",
+  "admin",
+  "hack",
+  "bypass",
+  "jailbreak",
+  "write a ",
+  "generate a ",
+  "create a ",
+  "poem",
+  "joke",
+  "story",
+  "script",
+  "code",
+  "translate into",
+  "from your own knowledge",
+  "outside the document",
+  "even if not in",
+  "הנחיות",
+  "פרומפט",
+  "התעלם",
+  "סיסמה",
+  "פריצה",
+  "לפרוץ",
+  "מחוץ למסמך",
+];
+
+/**
+ * Returns the exact borderline signals matched in a query for transparent logging.
+ */
+export function getBorderlineSignals(query: string): string[] {
+  const lowered = query.toLowerCase();
+  return BORDERLINE_SIGNALS.filter((signal) => lowered.includes(signal));
+}
+
 /**
  * Checks whether a query has subtle borderline signals worth double-checking
- * with the fast Layer 4 gpt-5-nano micro-classifier.
+ * with the fast Layer 4 micro-classifier.
  */
 export function shouldRunMicroClassifier(query: string): boolean {
-  const lowered = query.toLowerCase();
-  const borderlineSignals = [
-    "instruction",
-    "prompt",
-    "system",
-    "override",
-    "ignore",
-    "pretend",
-    "hypothetical",
-    "roleplay",
-    "secret",
-    "password",
-    "admin",
-    "hack",
-    "bypass",
-    "jailbreak",
-    "write a ",
-    "generate a ",
-    "create a ",
-    "poem",
-    "joke",
-    "story",
-    "script",
-    "code",
-    "translate into",
-    "from your own knowledge",
-    "outside the document",
-    "even if not in",
-    "הנחיות",
-    "פרומפט",
-    "התעלם",
-    "סיסמה",
-    "פריצה",
-    "לפרוץ",
-    "מחוץ למסמך",
-  ];
-  return borderlineSignals.some((signal) => lowered.includes(signal));
+  return getBorderlineSignals(query).length > 0;
 }

@@ -8,9 +8,9 @@ import { sysLogger } from "@/lib/logger";
 import { calculateCostUsd } from "@/lib/pricing";
 import {
   generateNonce,
+  getBorderlineSignals,
   inspectUserInput,
   sanitizeAuditSnippet,
-  shouldRunMicroClassifier,
   type GuardrailLang,
 } from "@/lib/guardrails/inputFilter";
 import {
@@ -52,6 +52,56 @@ function tokenizeForMatching(text: string): string[] {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((t) => t.length >= 2);
+}
+
+const STOP_WORDS = new Set([
+  "the", "and", "for", "that", "this", "with", "from", "are", "was", "were",
+  "what", "when", "where", "which", "who", "how", "why", "does", "did", "can",
+  "could", "would", "should", "about", "into", "your", "have", "has", "had",
+  "את", "של", "על", "עם", "לא", "כי", "גם", "מה", "איך", "למה", "מי", "איפה",
+  "מתי", "האם", "הוא", "היא", "הם", "הן", "זה", "זו", "אלה", "כל", "יש", "אין",
+]);
+
+function analyzeContextOverlap(
+  query: string,
+  sources: OrderedSource[]
+): {
+  queryKeywords: string[];
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  overlapPercent: number;
+  totalSourceTokens: number;
+} {
+  const uniqueTerms = Array.from(
+    new Set(tokenizeForMatching(query).filter((t) => !STOP_WORDS.has(t)))
+  );
+  const combinedSourceLower = sources
+    .map((s) => s.extractedText.toLowerCase())
+    .join("\n");
+
+  const matchedKeywords: string[] = [];
+  const missingKeywords: string[] = [];
+  for (const term of uniqueTerms) {
+    if (combinedSourceLower.includes(term)) {
+      matchedKeywords.push(term);
+    } else {
+      missingKeywords.push(term);
+    }
+  }
+
+  const overlapPercent =
+    uniqueTerms.length > 0
+      ? Math.round((matchedKeywords.length / uniqueTerms.length) * 100)
+      : 0;
+  const totalSourceTokens = sources.reduce((acc, s) => acc + s.tokenCount, 0);
+
+  return {
+    queryKeywords: uniqueTerms.slice(0, 15),
+    matchedKeywords: matchedKeywords.slice(0, 15),
+    missingKeywords: missingKeywords.slice(0, 15),
+    overlapPercent,
+    totalSourceTokens,
+  };
 }
 
 function findBestQuoteInSource(
@@ -349,6 +399,10 @@ export async function POST(req: NextRequest) {
         ? `נחסם על ידי מנגנון האבטחה (${layer1.layer}): ${layer1.reason}`
         : `Guardrail Blocked (${layer1.layer}): ${layer1.reason}`;
 
+    const reasonSummary = `[${layer1.rule}] ${layer1.reason}${
+      layer1.matchedFragment ? ` | Matched: "${layer1.matchedFragment}"` : ""
+    }`;
+
     const [, alertMessage] = await Promise.all([
       prisma.message.create({
         data: { userId, role: "user", content: query },
@@ -370,12 +424,29 @@ export async function POST(req: NextRequest) {
             ? QueryStatus.BLOCKED_INJECTION
             : QueryStatus.BLOCKED_OUT_OF_SCOPE,
           // Privacy rule: NEVER store user text for non-dangerous out-of-scope prompts.
-          guardrailReason: `[${layer1.rule}] ${layer1.reason}`,
+          guardrailReason: reasonSummary,
           flaggedText: isDangerous ? layer1.sanitizedSnippet : null,
           hourOfDay,
           dayOfWeek,
         },
       }),
+      (isDangerous ? sysLogger.error : sysLogger.warn)(
+        "guardrail.layer1",
+        `${isDangerous ? "BLOCKED_INJECTION" : "BLOCKED_OUT_OF_SCOPE"} by ${layer1.rule}: ${layer1.reason}`,
+        {
+          userId,
+          username: session.user.username,
+          meta: {
+            decision: isDangerous ? "BLOCKED_INJECTION" : "BLOCKED_OUT_OF_SCOPE",
+            layer: "Layer 1 (Deterministic Regex/Base64 Pre-Filter)",
+            rule: layer1.rule,
+            matchedFragment: layer1.matchedFragment ?? null,
+            queryLanguage: lang,
+            queryPreview: layer1.sanitizedSnippet,
+            latencyMs,
+          },
+        }
+      ),
     ]);
 
     return NextResponse.json(
@@ -408,6 +479,12 @@ export async function POST(req: NextRequest) {
 
   if (activeDocs.length === 0) {
     const latencyMs = Date.now() - requestStartedAt;
+    const totalUserDocs = await prisma.document.count({ where: { userId } });
+    const zeroSourcesReason =
+      totalUserDocs === 0
+        ? "[NO_CONTEXT_ZERO_UPLOADED_DOCS] User has 0 uploaded documents in workspace."
+        : `[NO_CONTEXT_ZERO_ACTIVE_DOCS] User has ${totalUserDocs} uploaded document(s) but 0 are toggled ON for context.`;
+
     await prisma.message.create({
       data: { userId, role: "user", content: query },
     });
@@ -418,22 +495,45 @@ export async function POST(req: NextRequest) {
         content: mandatoryRefusal,
       },
     });
-    await prisma.usageLog.create({
-      data: {
-        userId,
-        model: primaryModel,
-        promptTokens: 0,
-        cachedTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCostUsd: 0,
-        latencyMs,
-        status: QueryStatus.NO_CONTEXT_FOUND,
-        flaggedText: null,
-        hourOfDay,
-        dayOfWeek,
-      },
-    });
+    await Promise.all([
+      prisma.usageLog.create({
+        data: {
+          userId,
+          model: primaryModel,
+          promptTokens: 0,
+          cachedTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          estimatedCostUsd: 0,
+          latencyMs,
+          status: QueryStatus.NO_CONTEXT_FOUND,
+          guardrailReason: zeroSourcesReason,
+          flaggedText: null,
+          hourOfDay,
+          dayOfWeek,
+        },
+      }),
+      sysLogger.warn(
+        "chat.no_context",
+        `NO_CONTEXT_FOUND (0 active sources; ${totalUserDocs} uploaded) — refused before calling LLM.`,
+        {
+          userId,
+          username: session.user.username,
+          meta: {
+            decision: "NO_CONTEXT_FOUND",
+            cause:
+              totalUserDocs === 0
+                ? "ZERO_UPLOADED_DOCUMENTS"
+                : "ZERO_SELECTED_DOCUMENTS",
+            activeSourcesCount: 0,
+            totalUploadedDocsCount: totalUserDocs,
+            queryLanguage: lang,
+            queryPreview: sanitizeAuditSnippet(query, 200),
+            latencyMs,
+          },
+        }
+      ),
+    ]);
 
     const stream = new ReadableStream({
       start(controller) {
@@ -483,17 +583,21 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   // LAYER 4 (Pre-Synthesis): Fast Micro-Classifier on borderline queries
   // ---------------------------------------------------------------------------
-  if (shouldRunMicroClassifier(query)) {
+  const borderlineSignals = getBorderlineSignals(query);
+  if (borderlineSignals.length > 0) {
     const cls = await runMicroClassifier(openai, query);
     if (cls.isInjection || cls.isGenerativeOutOfScope) {
       const isDangerous = cls.isInjection;
       const status = isDangerous
         ? QueryStatus.BLOCKED_INJECTION
         : QueryStatus.BLOCKED_OUT_OF_SCOPE;
+      const latencyMs = Date.now() - requestStartedAt;
       const alertContent =
         lang === "he"
           ? `נחסם על ידי מסווג האבטחה (שכבה 4): ${cls.reason}`
           : `Guardrail Blocked (Layer 4 Micro-Classifier): ${cls.reason}`;
+
+      const classifierReason = `[L4_MICRO_CLASSIFIER] ${cls.reason} | Signals: ${borderlineSignals.join(", ")}`;
 
       const [, alertMessage] = await Promise.all([
         prisma.message.create({
@@ -511,15 +615,36 @@ export async function POST(req: NextRequest) {
             completionTokens: cls.completionTokens,
             totalTokens: cls.promptTokens + cls.completionTokens,
             estimatedCostUsd: cls.estimatedCostUsd,
-            latencyMs: Date.now() - requestStartedAt,
+            latencyMs,
             status,
             // Privacy rule: ONLY store flaggedText when classified as dangerous injection
-            guardrailReason: `[L4_MICRO_CLASSIFIER] ${cls.reason}`,
+            guardrailReason: classifierReason,
             flaggedText: isDangerous ? sanitizeAuditSnippet(query) : null,
             hourOfDay,
             dayOfWeek,
           },
         }),
+        (isDangerous ? sysLogger.error : sysLogger.warn)(
+          "guardrail.layer4.classifier",
+          `${status} by Layer 4 Micro-Classifier (${cls.model}): ${cls.reason}`,
+          {
+            userId,
+            username: session.user.username,
+            meta: {
+              decision: status,
+              layer: "Layer 4 (Pre-Synthesis Micro-Classifier)",
+              model: cls.model,
+              triggeredBySignals: borderlineSignals,
+              classifierReason: cls.reason,
+              isInjection: cls.isInjection,
+              isGenerativeOutOfScope: cls.isGenerativeOutOfScope,
+              queryLanguage: lang,
+              queryPreview: sanitizeAuditSnippet(query, 200),
+              tokensUsed: cls.promptTokens + cls.completionTokens,
+              latencyMs,
+            },
+          }
+        ),
       ]);
 
       return NextResponse.json(
@@ -640,23 +765,43 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await prisma.usageLog.create({
-            data: {
-              userId,
-              model: primaryModel,
-              promptTokens,
-              cachedTokens,
-              completionTokens,
-              totalTokens,
-              estimatedCostUsd,
-              latencyMs,
-              status: QueryStatus.BLOCKED_INJECTION,
-              guardrailReason: `[L4_OUTPUT_CANARY] ${reason}`,
-              flaggedText: sanitizeAuditSnippet(query),
-              hourOfDay,
-              dayOfWeek,
-            },
-          });
+          await Promise.all([
+            prisma.usageLog.create({
+              data: {
+                userId,
+                model: primaryModel,
+                promptTokens,
+                cachedTokens,
+                completionTokens,
+                totalTokens,
+                estimatedCostUsd,
+                latencyMs,
+                status: QueryStatus.BLOCKED_INJECTION,
+                guardrailReason: `[L4_OUTPUT_CANARY] ${reason}`,
+                flaggedText: sanitizeAuditSnippet(query),
+                hourOfDay,
+                dayOfWeek,
+              },
+            }),
+            sysLogger.error(
+              "guardrail.layer4.output",
+              `BLOCKED_INJECTION (Stream Aborted by Output Canary): ${reason}`,
+              {
+                userId,
+                username: session.user.username,
+                meta: {
+                  decision: "BLOCKED_INJECTION",
+                  layer: "Layer 4 (Streaming Output Canary Filter)",
+                  model: primaryModel,
+                  reason,
+                  queryLanguage: lang,
+                  queryPreview: sanitizeAuditSnippet(query, 200),
+                  partialOutputChars: fullAnswer.length,
+                  latencyMs,
+                },
+              }
+            ),
+          ]);
 
           controller.enqueue(
             buildSseEvent("done", {
@@ -680,12 +825,48 @@ export async function POST(req: NextRequest) {
             ? []
             : extractCitationsFromAnswer(finalContent, orderedSources);
 
+          let noContextReason: string | null = null;
+          if (isRefusal) {
+            const overlap = analyzeContextOverlap(query, orderedSources);
+            const cause = fullAnswer.trim()
+              ? "MODEL_GROUNDED_REFUSAL"
+              : "EMPTY_MODEL_RESPONSE";
+            noContextReason = `[${cause}] Checked ${orderedSources.length} source(s) (${overlap.totalSourceTokens.toLocaleString()} tok); ${overlap.matchedKeywords.length}/${overlap.queryKeywords.length} query keywords matched (${overlap.overlapPercent}%). Missing: ${overlap.missingKeywords.slice(0, 6).join(", ") || "none"}`;
+
+            await sysLogger.warn(
+              "chat.no_context",
+              `NO_CONTEXT_FOUND (${cause}): ${overlap.matchedKeywords.length}/${overlap.queryKeywords.length} keywords matched across ${orderedSources.length} active source(s).`,
+              {
+                userId,
+                username: session.user.username,
+                meta: {
+                  decision: "NO_CONTEXT_FOUND",
+                  cause,
+                  model: primaryModel,
+                  queryLanguage: lang,
+                  queryPreview: sanitizeAuditSnippet(query, 200),
+                  activeSourcesCount: orderedSources.length,
+                  activeSourceNames: orderedSources.map((s) => s.filename),
+                  activeContextTokens: overlap.totalSourceTokens,
+                  queryKeywords: overlap.queryKeywords,
+                  matchedKeywordsInSources: overlap.matchedKeywords,
+                  missingKeywordsFromSources: overlap.missingKeywords,
+                  keywordOverlapPercent: overlap.overlapPercent,
+                  latencyMs,
+                },
+              }
+            );
+          }
+
           const savedMsg = await prisma.message.create({
             data: {
               userId,
               role: "assistant",
               content: finalContent,
-              citations: citations.length > 0 ? (citations as unknown as object) : undefined,
+              citations:
+                citations.length > 0
+                  ? (citations as unknown as object)
+                  : undefined,
             },
           });
 
@@ -702,6 +883,7 @@ export async function POST(req: NextRequest) {
               status: isRefusal
                 ? QueryStatus.NO_CONTEXT_FOUND
                 : QueryStatus.SUCCESS,
+              guardrailReason: noContextReason,
               flaggedText: null,
               hourOfDay,
               dayOfWeek,

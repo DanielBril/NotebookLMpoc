@@ -45,7 +45,7 @@ export function Navbar({
     .slice(0, 2);
 
   return (
-    <header className="relative z-30 shrink-0 bg-[#253237] text-[#ffffff] border-b border-white/10">
+    <header className="relative z-30 shrink-0 bg-[#0f172a] text-white border-b border-white/10">
       <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
         {/* Start: Brand + Mode Navigation */}
         <div className="flex items-center gap-4 min-w-0">
@@ -65,15 +65,15 @@ export function Navbar({
           <span className="hidden sm:inline-block h-4 w-px bg-white/15" />
 
           <nav className="hidden sm:flex items-center gap-1">
-            {(user.role === "ADMIN" || user.role === "DEVELOPER") ? (
+            {user.role === "ADMIN" || user.role === "DEVELOPER" ? (
               <>
                 <Link
                   id="nav-workspace-link"
                   href="/workspace"
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     mode === "workspace"
-                      ? "bg-white/15 text-white"
-                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                      ? "bg-[#0d9488] text-white shadow-xs"
+                      : "text-slate-300 hover:text-white hover:bg-white/8"
                   }`}
                 >
                   {t.navbar.workspaceBtn}
@@ -81,10 +81,10 @@ export function Navbar({
                 <Link
                   id="nav-admin-link"
                   href="/admin"
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     mode === "admin"
-                      ? "bg-white/15 text-white"
-                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                      ? "bg-[#0d9488] text-white shadow-xs"
+                      : "text-slate-300 hover:text-white hover:bg-white/8"
                   }`}
                 >
                   {t.navbar.adminPortalBtn}
@@ -92,17 +92,17 @@ export function Navbar({
                 <Link
                   id="nav-developer-link"
                   href="/developer"
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     mode === "developer"
-                      ? "bg-white/15 text-white"
-                      : "text-[#c2dfe3] hover:text-white hover:bg-white/5"
+                      ? "bg-[#0d9488] text-white shadow-xs"
+                      : "text-slate-300 hover:text-white hover:bg-white/8"
                   }`}
                 >
                   {isHe ? "דיאגנוסטיקה ולוגים" : "Developer Ops"}
                 </Link>
               </>
             ) : (
-              <span className="text-xs font-medium text-[#c2dfe3] truncate">
+              <span className="text-xs font-medium text-slate-300 truncate">
                 {t.navbar.workspaceTitle}
               </span>
             )}
@@ -111,29 +111,35 @@ export function Navbar({
 
         {/* Center: Clean Tabular Context Readout (Workspace mode only) */}
         {mode === "workspace" && (
-          <div className="hidden md:flex items-center gap-3 text-xs font-mono text-[#c2dfe3]">
+          <div className="hidden md:flex items-center gap-3 text-xs font-mono text-slate-300">
             <span>
               <strong className="text-white font-semibold">{sourceCount}</strong>
-              <span className="text-[#9db4c0]">/{MAX_FILES_PER_USER}</span>{" "}
+              <span className="text-slate-400">/{MAX_FILES_PER_USER}</span>{" "}
               {t.navbar.sourcesUnit}
             </span>
             <span className="text-white/20">|</span>
             <div className="flex items-center gap-2">
               <span>
-                <strong className="text-white font-semibold">
+                <strong
+                  className={
+                    isNearTokenLimit
+                      ? "text-amber-300 font-semibold"
+                      : "text-white font-semibold"
+                  }
+                >
                   {activeTokens.toLocaleString()}
                 </strong>
-                <span className="text-[#9db4c0]">
+                <span className="text-slate-400">
                   /{MAX_ACTIVE_CONTEXT_TOKENS.toLocaleString()}
                 </span>{" "}
                 {t.navbar.tokensUnit}
               </span>
-              <div className="w-14 h-1 rounded-full bg-white/15 overflow-hidden">
+              <div className="w-16 h-1.5 rounded-full bg-white/15 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${Math.max(activeTokens > 0 ? 4 : 0, Math.round(tokenRatio * 100))}%`,
-                    backgroundColor: isNearTokenLimit ? "#e0fbfc" : "#9db4c0",
+                    backgroundColor: isNearTokenLimit ? "#f59e0b" : "#14b8a6",
                   }}
                 />
               </div>
@@ -150,11 +156,15 @@ export function Navbar({
               id="toggle-sources-btn"
               type="button"
               onClick={onToggleSidebar}
-              title={sidebarOpen ? t.navbar.collapseSources : t.navbar.openSources}
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title={
+                sidebarOpen ? t.navbar.collapseSources : t.navbar.openSources
+              }
+              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-teal-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <PanelRightOpen className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
-              <span className="hidden sm:inline">{t.navbar.sourcesCount(sourceCount)}</span>
+              <span className="hidden sm:inline">
+                {t.navbar.sourcesCount(sourceCount)}
+              </span>
             </button>
           )}
 
@@ -169,11 +179,11 @@ export function Navbar({
                 className="h-6 w-6 rounded-full object-cover"
               />
             ) : (
-              <div className="h-6 w-6 rounded-full bg-white/15 text-white flex items-center justify-center text-[10px] font-semibold">
+              <div className="h-6 w-6 rounded-full bg-teal-500/25 text-teal-200 flex items-center justify-center text-[10px] font-semibold">
                 {initials}
               </div>
             )}
-            <span className="hidden lg:inline text-xs font-medium text-[#c2dfe3] max-w-[110px] truncate">
+            <span className="hidden lg:inline text-xs font-medium text-slate-200 max-w-[110px] truncate">
               {user.name || user.username}
             </span>
           </div>
@@ -188,7 +198,7 @@ export function Navbar({
               })
             }
             title={t.navbar.signOutTitle}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#9db4c0] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
             <span className="hidden sm:inline">{t.navbar.logout}</span>

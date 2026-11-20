@@ -169,21 +169,23 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
     }
   }
 
+  const isHe = lang === "he";
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Navbar mode="admin" user={user} />
 
-      <main className="flex-1 mx-auto w-full max-w-[1100px] px-4 sm:px-8 py-10 space-y-12">
-        {/* Header: title + the one primary action */}
+      <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">
+        {/* Header: title + the one Teal primary action */}
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#253237]">
+          <div dir={isHe ? "rtl" : "ltr"}>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
               {t.admin.pageTitle}
             </h1>
-            <p className="mt-1 text-sm text-[#5c6b73]">
+            <p className="mt-1 text-sm text-slate-600">
               {t.admin.pageSubtitle}
               {data && (
-                <span className="font-mono text-xs text-[#9db4c0]" dir="ltr">
+                <span className="font-mono text-xs text-slate-400" dir="ltr">
                   {" "}
                   ·{" "}
                   {new Date(data.generatedAt).toLocaleTimeString(
@@ -207,56 +209,68 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
           </button>
         </div>
 
-        {/* Privacy notice: a quiet note, not a boxed banner */}
-        <p className="text-xs leading-relaxed text-[#5c6b73] border-s-2 border-[#253237]/15 ps-3 max-w-2xl">
-          <strong className="font-semibold text-[#253237]">
+        {/* Privacy notice: calm Blue info callout */}
+        <p
+          dir={isHe ? "rtl" : "ltr"}
+          className="text-xs leading-relaxed text-slate-600 bg-blue-50/60 border border-blue-200/70 border-s-4 border-s-blue-600 rounded-lg px-4 py-3 max-w-3xl"
+        >
+          <strong className="font-semibold text-blue-950">
             {t.admin.privacyBannerTitle}
           </strong>{" "}
           {t.admin.privacyBannerDesc}
         </p>
 
         {error && (
-          <div className="border-s-2 border-[#253237] bg-[#f8fafb] px-4 py-3 text-sm text-[#253237]">
+          <div className="rounded-lg border border-rose-200 border-s-4 border-s-rose-600 bg-rose-50 px-4 py-3 text-sm text-rose-900">
             {error}
           </div>
         )}
 
         {isLoading || !data ? (
-          <div className="py-24 flex flex-col items-center gap-3 text-[#5c6b73]">
-            <Loader2 className="h-5 w-5 animate-spin text-[#253237]" />
+          <div className="py-24 flex flex-col items-center gap-3 text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
             <p className="text-sm">{t.admin.loadingMetrics}</p>
           </div>
         ) : (
           <>
             <KpiGrid kpis={data.kpis} />
 
-            {/* Flagged texts */}
+            {/* Flagged Dangerous Texts Only Feed */}
             <section className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
-                  {t.admin.dangerousFeedTitle}{" "}
-                  <span className="font-mono text-sm font-normal text-[#5c6b73]">
+              <div dir={isHe ? "rtl" : "ltr"}>
+                <h2 className="text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                  <span>{t.admin.dangerousFeedTitle}</span>
+                  <span
+                    className={`rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${
+                      data.flaggedDangerousFeed.length > 0
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
                     {t.admin.dangerousEventsCount(
                       data.flaggedDangerousFeed.length
                     )}
                   </span>
                 </h2>
-                <p className="text-sm text-[#5c6b73]">
+                <p className="text-sm text-slate-500 mt-0.5">
                   {t.admin.dangerousFeedSubtitle}
                 </p>
               </div>
 
               {data.flaggedDangerousFeed.length === 0 ? (
-                <div className="py-10 border-t border-[#253237]/10">
-                  <p className="text-sm font-medium text-[#253237]">
+                <div
+                  dir={isHe ? "rtl" : "ltr"}
+                  className="py-8 border-t border-slate-200"
+                >
+                  <p className="text-sm font-medium text-emerald-800">
                     {t.admin.zeroDangerousTitle}
                   </p>
-                  <p className="mt-1 text-xs text-[#5c6b73] max-w-md leading-relaxed">
+                  <p className="mt-1 text-xs text-slate-500 max-w-md leading-relaxed">
                     {t.admin.zeroDangerousDesc}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#253237]/8 border-t border-[#253237]/10">
+                <div className="divide-y divide-slate-100 border-t border-slate-200">
                   {data.flaggedDangerousFeed.map((ev) => {
                     const canBlock =
                       ev.userRole !== "ADMIN" && ev.userId !== user.id;
@@ -269,9 +283,9 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                         <div className="min-w-0 flex-1 basis-80 space-y-1.5">
                           <p
                             dir="ltr"
-                            className="font-mono text-[11px] text-[#5c6b73]"
+                            className="font-mono text-[11px] text-slate-500"
                           >
-                            <span className="font-semibold text-[#253237]">
+                            <span className="font-semibold text-slate-900">
                               @{ev.username}
                             </span>{" "}
                             ·{" "}
@@ -282,17 +296,17 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                           </p>
                           <p
                             dir="auto"
-                            className="text-sm font-mono text-[#253237] break-words"
+                            className="rounded bg-rose-50/70 border border-rose-200/70 px-3 py-1.5 text-sm font-mono text-rose-950 break-words"
                           >
                             {ev.flaggedText}
                           </p>
-                          <p className="text-[11px] text-[#9db4c0]">
+                          <p className="text-xs text-rose-700 font-medium">
                             {ev.ruleReason}
                           </p>
                         </div>
                         <div className="shrink-0">
                           {!canBlock ? null : ev.isUserBlocked ? (
-                            <span className="text-xs text-[#5c6b73]">
+                            <span className="inline-flex rounded-md bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
                               {t.admin.userBlockedPill}
                             </span>
                           ) : (
@@ -306,7 +320,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                                   ev.ruleReason
                                 )
                               }
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#253237]/20 px-3 py-1.5 text-xs font-medium text-[#253237] hover:border-[#253237] hover:bg-[#f8fafb] disabled:opacity-40 transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white hover:border-rose-600 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40 transition-colors cursor-pointer"
                             >
                               {isBusy && (
                                 <Loader2 className="h-3 w-3 animate-spin" />

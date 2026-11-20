@@ -42,6 +42,7 @@ export function KpiGrid({ kpis }: KpiGridProps) {
     {
       label: t.admin.kpiTotalUsers,
       value: kpis.totalUsers.toLocaleString(),
+      dot: "bg-blue-500",
       note: `${t.admin.kpiLast24h(kpis.newUsers24h)} · ${
         kpis.blockedUsers > 0
           ? t.admin.kpiBlockedBadge(kpis.blockedUsers)
@@ -51,11 +52,13 @@ export function KpiGrid({ kpis }: KpiGridProps) {
     {
       label: t.admin.kpiFilesUploaded,
       value: kpis.totalFilesUploaded.toLocaleString(),
+      dot: "bg-teal-500",
       note: `${t.admin.kpiIndexedStorage} ${formatStorageMb(kpis.totalStorageBytes)}`,
     },
     {
       label: t.admin.kpiTokensConsumed,
       value: formatTokensCompact(kpis.totalTokens),
+      dot: "bg-indigo-500",
       note: `${t.admin.kpiCached(
         formatTokensCompact(kpis.totalCachedTokens),
         cacheRate
@@ -64,22 +67,26 @@ export function KpiGrid({ kpis }: KpiGridProps) {
     {
       label: t.admin.kpiLatencySecurity,
       value: kpis.avgLatencyMs > 0 ? `${kpis.avgLatencyMs}ms` : "—",
+      dot: kpis.dangerousFlags > 0 ? "bg-rose-500" : "bg-emerald-500",
       note: `${t.admin.kpiAnswered(kpis.totalQueries)} · ${t.admin.kpiDangerousFlags(kpis.dangerousFlags)}`,
     },
   ];
 
   return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8 border-y border-[#253237]/10 py-8">
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8 border-y border-slate-200 py-8">
       {items.map((it) => (
         <div key={it.label}>
-          <p className="text-xs text-[#5c6b73]">{it.label}</p>
+          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <span className={`h-2 w-2 rounded-full ${it.dot}`} />
+            {it.label}
+          </p>
           <p
             dir="ltr"
-            className="mt-1.5 text-3xl font-semibold tracking-tight text-[#253237] font-mono text-start"
+            className="mt-1.5 text-3xl font-semibold tracking-tight text-slate-900 font-mono text-start"
           >
             {it.value}
           </p>
-          <p className="mt-1.5 text-[11px] text-[#9db4c0]">{it.note}</p>
+          <p className="mt-1.5 text-[11px] text-slate-400">{it.note}</p>
         </div>
       ))}
     </section>

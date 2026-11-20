@@ -218,14 +218,17 @@ export function SourcesSidebar({
   const activeAlert = localError || toastError;
 
   return (
-    <aside className="relative flex flex-col h-full bg-[#f8fafb] border-s border-[#253237]/10 w-full lg:w-[340px] xl:w-[380px] shrink-0 overflow-hidden">
-      {/* Header — typography only, no tinted bar */}
-      <div className="px-5 pt-5 pb-4 flex items-start justify-between shrink-0">
+    <aside className="relative flex flex-col h-full bg-slate-50 border-s border-slate-200 w-full lg:w-[340px] xl:w-[380px] shrink-0 overflow-hidden">
+      {/* Header */}
+      <div
+        dir={isHe ? "rtl" : "ltr"}
+        className="px-5 pt-5 pb-4 flex items-start justify-between shrink-0"
+      >
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-[#253237]">
+          <h2 className="text-base font-semibold tracking-tight text-slate-900">
             {t.sources.title}
           </h2>
-          <p className="mt-0.5 text-xs text-[#5c6b73] font-mono" dir="ltr">
+          <p className="mt-0.5 text-xs text-slate-500 font-mono" dir="ltr">
             {summary.count}/{MAX_FILES_PER_USER} ·{" "}
             {t.sources.activeTok(formatTokensCompact(summary.activeTokens))}
           </p>
@@ -235,17 +238,20 @@ export function SourcesSidebar({
             type="button"
             onClick={onCollapse}
             title={t.sources.closePanel}
-            className="rounded-md p-1 text-[#5c6b73] hover:text-[#253237] hover:bg-[#253237]/5 transition-colors cursor-pointer"
+            className="rounded-md p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 transition-colors cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* Inline Alerts */}
+      {/* Inline Alerts (Rose for Error, Amber for Warning) */}
       {activeAlert && (
-        <div className="mx-5 mb-3 rounded-lg bg-white border-s-2 border-[#253237] px-3 py-2.5 text-xs text-[#253237] flex items-start gap-2 shrink-0 shadow-[0_1px_2px_rgba(37,50,55,0.06)]">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <div
+          dir={isHe ? "rtl" : "ltr"}
+          className="mx-5 mb-3 rounded-lg bg-rose-50 border border-rose-200 border-s-4 border-s-rose-500 px-3 py-2.5 text-xs text-rose-900 flex items-start gap-2 shrink-0"
+        >
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-rose-600" />
           <span className="flex-1 leading-snug">{activeAlert}</span>
           <button
             type="button"
@@ -253,7 +259,7 @@ export function SourcesSidebar({
               setLocalError(null);
               onDismissToast();
             }}
-            className="text-[#5c6b73] hover:text-[#253237] cursor-pointer"
+            className="text-rose-500 hover:text-rose-800 cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -261,19 +267,22 @@ export function SourcesSidebar({
       )}
 
       {toastWarning && !activeAlert && (
-        <div className="mx-5 mb-3 rounded-lg bg-white border-s-2 border-[#9db4c0] px-3 py-2.5 text-xs text-[#5c6b73] flex items-start gap-2 shrink-0">
+        <div
+          dir={isHe ? "rtl" : "ltr"}
+          className="mx-5 mb-3 rounded-lg bg-amber-50 border border-amber-200 border-s-4 border-s-amber-500 px-3 py-2.5 text-xs text-amber-900 flex items-start gap-2 shrink-0"
+        >
           <span className="flex-1 leading-snug">{toastWarning}</span>
           <button
             type="button"
             onClick={onDismissToast}
-            className="text-[#5c6b73] hover:text-[#253237] cursor-pointer"
+            className="text-amber-600 hover:text-amber-900 cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Upload — single dashed drop target, no nested tiles */}
+      {/* Upload Dropzone — Teal interactive affordance */}
       <div className="px-5 pb-4 shrink-0">
         <input
           ref={fileInputRef}
@@ -298,18 +307,18 @@ export function SourcesSidebar({
           onDrop={handleDrop}
           className={`rounded-lg border border-dashed px-4 py-3 transition-colors ${
             isAtFileCap
-              ? "border-[#253237]/15 bg-transparent"
+              ? "border-slate-300 bg-slate-100/60"
               : isDragging
-                ? "border-[#253237] bg-white"
-                : "border-[#253237]/20 hover:border-[#253237]/45 bg-white/60"
+                ? "border-teal-600 bg-teal-50"
+                : "border-teal-400/70 hover:border-teal-600 bg-teal-50/40 hover:bg-teal-50/80"
           }`}
         >
           {isAtFileCap ? (
-            <div>
-              <p className="text-xs font-medium text-[#253237]">
+            <div dir={isHe ? "rtl" : "ltr"}>
+              <p className="text-xs font-medium text-slate-800">
                 {t.sources.maxReachedTitle}
               </p>
-              <p className="text-[11px] text-[#5c6b73] mt-0.5">
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 {t.sources.maxReachedDesc}
               </p>
             </div>
@@ -319,30 +328,35 @@ export function SourcesSidebar({
               type="button"
               disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
+              dir={isHe ? "rtl" : "ltr"}
               className="w-full flex items-center justify-between gap-3 text-start cursor-pointer disabled:cursor-wait"
             >
               <span className="min-w-0">
-                <span className="block text-xs font-medium text-[#253237]">
+                <span className="block text-xs font-semibold text-teal-800">
                   {isUploading ? t.sources.extracting : t.sources.addSources}
                 </span>
-                <span className="block text-[11px] text-[#5c6b73] truncate">
+                <span className="block text-[11px] text-slate-500 truncate mt-0.5">
                   {t.sources.formatsHint}
                 </span>
               </span>
-              {isUploading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-[#253237] shrink-0" />
-              ) : (
-                <Plus className="h-4 w-4 text-[#253237] shrink-0" />
-              )}
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-teal-600 text-white shrink-0">
+                {isUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </span>
             </button>
           )}
         </div>
 
-        {/* Storage meter — tertiary */}
-        <div className="mt-3 flex items-center gap-2.5 text-[11px] text-[#9db4c0] font-mono">
-          <div className="h-0.5 flex-1 rounded-full bg-[#253237]/8 overflow-hidden">
+        {/* Storage meter */}
+        <div className="mt-3 flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
+          <div className="h-1 flex-1 rounded-full bg-slate-200 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[#5c6b73] transition-all duration-300"
+              className={`h-full rounded-full transition-all duration-300 ${
+                storagePercent > 85 ? "bg-amber-500" : "bg-teal-600"
+              }`}
               style={{
                 width: `${Math.max(summary.totalSizeBytes > 0 ? 3 : 0, storagePercent)}%`,
               }}
@@ -353,28 +367,29 @@ export function SourcesSidebar({
           </span>
         </div>
       </div>
-      {/* Sources List — divided rows instead of stacked cards */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4 border-t border-[#253237]/8">
+
+      {/* Sources List */}
+      <div className="flex-1 overflow-y-auto px-5 pb-4 border-t border-slate-200">
         {isLoading ? (
-          <div className="divide-y divide-[#253237]/8">
+          <div className="divide-y divide-slate-200/70">
             {[1, 2, 3].map((idx) => (
               <div key={idx} className="py-3.5">
-                <div className="h-3 w-2/3 rounded bg-[#253237]/8 animate-pulse" />
-                <div className="mt-2 h-2.5 w-1/3 rounded bg-[#253237]/5 animate-pulse" />
+                <div className="h-3 w-2/3 rounded bg-slate-200 animate-pulse" />
+                <div className="mt-2 h-2.5 w-1/3 rounded bg-slate-200/60 animate-pulse" />
               </div>
             ))}
           </div>
         ) : documents.length === 0 ? (
-          <div className="py-10">
-            <p className="text-sm font-medium text-[#253237]">
+          <div dir={isHe ? "rtl" : "ltr"} className="py-10">
+            <p className="text-sm font-medium text-slate-800">
               {t.sources.emptyTitle}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-[#5c6b73]">
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
               {t.sources.emptyDesc}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#253237]/8">
+          <div className="divide-y divide-slate-200/70">
             {documents.map((doc) => {
               const ext = getFileTypeBadge(doc.filename).label;
               const isHighlighted = highlightedDocId === doc.id;
@@ -387,11 +402,11 @@ export function SourcesSidebar({
                   id={`source-card-${doc.id}`}
                   className={`group -mx-2 px-2 py-3 rounded-md flex items-start gap-3 transition-colors ${
                     isHighlighted
-                      ? "bg-[#e0fbfc] source-highlight-pulse"
+                      ? "bg-teal-50 ring-1 ring-teal-400 source-highlight-pulse"
                       : "hover:bg-white"
-                  } ${doc.isSelected ? "" : "opacity-60 hover:opacity-100"}`}
+                  } ${doc.isSelected ? "" : "opacity-55 hover:opacity-100"}`}
                 >
-                  {/* Include in context */}
+                  {/* Emerald active checkbox */}
                   <button
                     type="button"
                     role="checkbox"
@@ -401,8 +416,8 @@ export function SourcesSidebar({
                     onClick={() => void handleCheckboxToggle(doc)}
                     className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors cursor-pointer ${
                       doc.isSelected
-                        ? "bg-[#253237] border-[#253237] text-white"
-                        : "bg-white border-[#253237]/30 text-transparent hover:border-[#253237]"
+                        ? "bg-emerald-600 border-emerald-600 text-white"
+                        : "bg-white border-slate-300 text-transparent hover:border-emerald-500"
                     }`}
                   >
                     {pendingToggleId === doc.id ? (
@@ -418,20 +433,21 @@ export function SourcesSidebar({
                       type="button"
                       onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
                       title={doc.filename}
-                      className="block w-full text-start text-sm font-medium text-[#253237] truncate hover:underline underline-offset-2 cursor-pointer"
+                      className="block w-full text-start text-sm font-medium text-slate-900 truncate hover:text-teal-700 hover:underline underline-offset-2 cursor-pointer"
                     >
                       {doc.filename}
                     </button>
                     <p
-                      className="mt-0.5 text-[11px] font-mono text-[#9db4c0]"
+                      className="mt-0.5 text-[11px] font-mono text-slate-400"
                       dir="ltr"
                     >
-                      {ext} · {formatTokensCompact(doc.tokenCount)}{" "}
+                      <span className="font-semibold text-slate-500">{ext}</span>{" "}
+                      · {formatTokensCompact(doc.tokenCount)}{" "}
                       {t.sources.tokUnit} · {formatFileSize(doc.sizeBytes)}
                     </p>
                   </div>
 
-                  {/* Row actions — tertiary, revealed on hover */}
+                  {/* Row actions — semantic hover colors */}
                   <div className="flex items-center gap-0.5 shrink-0">
                     {isConfirming ? (
                       <>
@@ -439,14 +455,14 @@ export function SourcesSidebar({
                           type="button"
                           disabled={deletingId === doc.id}
                           onClick={() => void handleConfirmDelete(doc.id)}
-                          className="rounded px-2 py-1 text-[11px] font-medium text-[#253237] underline underline-offset-2 cursor-pointer"
+                          className="rounded px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
                           {deletingId === doc.id ? "…" : t.sources.deleteBtn}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
-                          className="rounded px-1.5 py-1 text-[11px] text-[#5c6b73] hover:text-[#253237] cursor-pointer"
+                          className="rounded px-1.5 py-1 text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer"
                         >
                           {t.sources.cancelBtn}
                         </button>
@@ -459,7 +475,7 @@ export function SourcesSidebar({
                             onOpenPreview(doc.id, doc.previewSnippet)
                           }
                           title={t.sources.previewTitle}
-                          className="rounded p-1 text-[#5c6b73] hover:text-[#253237] cursor-pointer"
+                          className="rounded p-1 text-slate-400 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -467,7 +483,7 @@ export function SourcesSidebar({
                           type="button"
                           onClick={() => setConfirmDeleteId(doc.id)}
                           title={t.sources.deleteTitle}
-                          className="rounded p-1 text-[#5c6b73] hover:text-[#253237] cursor-pointer"
+                          className="rounded p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

@@ -60,18 +60,16 @@ body {
 
 /* Brand Auth Split-Screen Surface */
 .auth-brand-mesh {
-  background-color: #253237;
-  background-image: radial-gradient(
-    circle at 18% 22%,
-    rgba(92, 107, 115, 0.25) 0%,
-    transparent 55%
-  );
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(13, 148, 136, 0.28) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(37, 99, 235, 0.2) 0%, transparent 50%);
 }
 
-/* Primary Jet-Black Action Button — Reserved strictly for primary actions */
+/* Primary Teal Action Button — Clear, unmistakable primary CTA */
 .btn-jet {
   position: relative;
-  background-color: var(--jet-black);
+  background-color: #0d9488;
   color: #ffffff;
   transition:
     background-color 150ms ease,
@@ -80,16 +78,16 @@ body {
 }
 
 .btn-jet:hover:not(:disabled) {
-  background-color: #182226;
-  box-shadow: 0 2px 8px rgba(37, 50, 55, 0.18);
+  background-color: #0f766e;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.28);
 }
 
 .btn-jet:active:not(:disabled) {
-  transform: scale(0.99);
+  transform: scale(0.985);
 }
 
 .btn-jet:disabled {
-  opacity: 0.4;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 

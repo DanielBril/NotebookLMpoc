@@ -13,7 +13,8 @@ import { useLanguage } from "@/lib/i18n";
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHe = lang === "he";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorKey, setErrorKey] = useState<
@@ -130,7 +131,7 @@ function LoginFormContent() {
   }
 
   return (
-    <main className="min-h-screen flex bg-[#f2fafb]">
+    <main className="min-h-screen flex bg-slate-50">
       <AuthShowcasePane />
 
       <section className="relative flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
@@ -139,17 +140,20 @@ function LoginFormContent() {
           <LanguageToggle variant="light" id="login-lang-toggle" />
         </div>
 
-        <div className="w-full max-w-[420px] animate-fade-in-up">
+        <div className="w-full max-w-[420px]">
           <div className="mb-8 lg:hidden">
             <BrandLogo size={32} variant="dark" showSubtitle />
           </div>
 
-          <div className="rounded-2xl bg-white p-7 sm:p-8 border border-[#9db4c0]/45 shadow-[0_14px_38px_-14px_rgba(37,50,55,0.14)]">
+          <div
+            dir={isHe ? "rtl" : "ltr"}
+            className="rounded-2xl bg-white p-7 sm:p-8 border border-slate-200 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.1)]"
+          >
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#253237]">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
                 {t.auth.loginTitle}
               </h2>
-              <p className="mt-1.5 text-sm text-[#5c6b73]">
+              <p className="mt-1.5 text-sm text-slate-500">
                 {t.auth.loginSubtitle}
               </p>
             </div>
@@ -157,9 +161,9 @@ function LoginFormContent() {
             {errorMessage && (
               <div
                 role="alert"
-                className="animate-toast-in mb-5 flex items-start gap-2.5 rounded-xl bg-[#e0fbfc] px-3.5 py-3 text-xs font-medium text-[#253237] border-[1.5px] border-[#253237]/45"
+                className="mb-5 flex items-start gap-2.5 rounded-lg bg-rose-50 px-3.5 py-3 text-xs font-medium text-rose-900 border border-rose-200 border-s-4 border-s-rose-600"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#253237]" />
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
                 <span>{errorMessage}</span>
               </div>
             )}
