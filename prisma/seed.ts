@@ -4,12 +4,21 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Remove any previously seeded mock/demo users and any mock-model usage logs
+  // Remove any previously seeded mock/demo users or automated QA test accounts
   const deletedMockUsers = await prisma.user.deleteMany({
     where: {
-      username: {
-        in: ["maya_cohen", "daniel_levi", "noam_barak"],
-      },
+      OR: [
+        {
+          username: {
+            in: ["maya_cohen", "daniel_levi", "noam_barak"],
+          },
+        },
+        {
+          username: {
+            startsWith: "qa_runner_",
+          },
+        },
+      ],
     },
   });
 

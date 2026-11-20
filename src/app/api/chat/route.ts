@@ -77,6 +77,8 @@ function findBestQuoteInSource(
       : answerText.slice(0, 280);
   const claimClean = claimRaw
     .replace(/`?\[\d+\]\s*[^\s`]*`?/g, "")
+    .replace(/[*_`~]+/g, "")
+    .replace(/\s*,\s*\.$/, ".")
     .replace(/^[-*•\d.)\s]+/, "")
     .trim();
 
@@ -98,7 +100,7 @@ function findBestQuoteInSource(
       matchedQuote: fallback.slice(0, 180),
       claimText: claimClean.slice(0, 220),
       confidence: "synthesized",
-      matchScore: 0.65,
+      matchScore: 65,
     };
   }
 
