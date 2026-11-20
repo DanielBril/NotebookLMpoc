@@ -86,8 +86,13 @@ function LoginFormContent() {
       const sessionData = (await sessionRes.json()) as {
         user?: { role?: string };
       };
+      const userRole = sessionData?.user?.role;
       const destination =
-        sessionData?.user?.role === "ADMIN" ? "/admin" : "/workspace";
+        userRole === "DEVELOPER"
+          ? "/developer"
+          : userRole === "ADMIN"
+            ? "/admin"
+            : "/workspace";
 
       router.push(destination);
       router.refresh();

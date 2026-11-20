@@ -1,4 +1,6 @@
 import mammoth from "mammoth";
+import { ensurePdfDomPolyfills } from "@/lib/domMatrixPolyfill";
+import { sysLogger } from "@/lib/logger";
 import {
   ALLOWED_EXTENSIONS,
   MAX_ACTIVE_CONTEXT_TOKENS,
@@ -120,36 +122,59 @@ export async function parseDocumentBuffer(
 
   let extractedText = "";
 
-  switch (validation.extension) {
-    case ".pdf": {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      try {
-        const result = await parser.getText();
-        extractedText = cleanExtractedText(result.text || "");
-      } finally {
-        await parser.destroy().catch(() => {});
+  try {
+    switch (validation.extension) {
+      case ".pdf": {
+        // Ensure DOMMatrix, ImageData & Path2D globals exist before loading pdfjs-dist
+        ensurePdfDomPolyfills();
+        const { PDFParse } = await import("pdf-parse");
+        const parser = new PDFParse({ data: new Uint8Array(buffer) });
+        try {
+          const result = await parser.getText();
+          extractedText = cleanExtractedText(result.text || "");
+        } finally {
+          await parser.destroy().catch(() => {});
+        }
+        break;
       }
-      break;
+      case ".docx": {
+        const result = await mammoth.extractRawText({ buffer });
+        extractedText = cleanExtractedText(result.value || "");
+        break;
+      }
+      case ".txt":
+      case ".md":
+      case ".csv": {
+        assertNotBinaryUtf8(buffer);
+        extractedText = cleanExtractedText(buffer.toString("utf-8"));
+        break;
+      }
     }
-    case ".docx": {
-      const result = await mammoth.extractRawText({ buffer });
-      extractedText = cleanExtractedText(result.value || "");
-      break;
-    }
-    case ".txt":
-    case ".md":
-    case ".csv": {
-      assertNotBinaryUtf8(buffer);
-      extractedText = cleanExtractedText(buffer.toString("utf-8"));
-      break;
-    }
+  } catch (err) {
+    await sysLogger.error(
+      `fileParser.${validation.extension.slice(1)}`,
+      `Failed to parse document "${filename}"`,
+      {
+        error: err,
+        meta: {
+          filename,
+          extension: validation.extension,
+          sizeBytes: buffer.length,
+          domMatrixDefined: typeof globalThis.DOMMatrix !== "undefined",
+        },
+      }
+    );
+    throw err;
   }
 
   if (!extractedText) {
-    throw new Error(
+    const emptyErr = new Error(
       `No readable text could be extracted from "${filename}". Scanned image-only PDFs are not supported.`
     );
+    await sysLogger.warn("fileParser.empty", emptyErr.message, {
+      meta: { filename, extension: validation.extension, sizeBytes: buffer.length },
+    });
+    throw emptyErr;
   }
 
   const tokenCount = estimateTokenCount(extractedText);

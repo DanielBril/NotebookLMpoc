@@ -34,7 +34,10 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (session.user.role !== Role.ADMIN) {
+  if (
+    session.user.role !== Role.ADMIN &&
+    session.user.role !== Role.DEVELOPER
+  ) {
     return NextResponse.json(
       { error: "Forbidden: Admin access required." },
       { status: 403 }

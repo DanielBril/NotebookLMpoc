@@ -4,6 +4,7 @@ import { QueryStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
+import { sysLogger } from "@/lib/logger";
 import { calculateCostUsd } from "@/lib/pricing";
 import { generateNonce, type GuardrailLang } from "@/lib/guardrails/inputFilter";
 import {
@@ -324,6 +325,12 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Studio generation failed.";
+    await sysLogger.error(`api.studio.${mode}`, message, {
+      error: err,
+      userId,
+      username: session.user.username,
+      meta: { mode, model: primaryModel },
+    });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { QueryStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
+import { sysLogger } from "@/lib/logger";
 import { calculateCostUsd } from "@/lib/pricing";
 import {
   generateNonce,
@@ -726,6 +727,13 @@ export async function POST(req: NextRequest) {
         const latencyMs = Date.now() - requestStartedAt;
         const message =
           err instanceof Error ? err.message : "OpenAI streaming request failed.";
+
+        await sysLogger.error("api.chat.stream", message, {
+          error: err,
+          userId,
+          username: session.user.username,
+          meta: { model: primaryModel, latencyMs },
+        });
 
         await prisma.usageLog
           .create({

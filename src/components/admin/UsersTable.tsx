@@ -294,7 +294,9 @@ export function UsersTable({
               ) : (
                 filteredAndSorted.map((u) => {
                   const isSelfOrAdmin =
-                    u.role === "ADMIN" || u.id === currentAdminId;
+                    u.role === "ADMIN" ||
+                    u.role === "DEVELOPER" ||
+                    u.id === currentAdminId;
                   const isBusy = pendingBlockUserId === u.id;
 
                   return (
@@ -326,6 +328,12 @@ export function UsersTable({
                                 <span className="inline-flex items-center gap-0.5 rounded bg-[#253237] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#e0fbfc]">
                                   <Shield className="h-2.5 w-2.5" />
                                   {t.navbar.adminBadge}
+                                </span>
+                              )}
+                              {u.role === "DEVELOPER" && (
+                                <span className="inline-flex items-center gap-0.5 rounded bg-[#5c6b73] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#e0fbfc]">
+                                  <Shield className="h-2.5 w-2.5" />
+                                  DEV
                                 </span>
                               )}
                             </div>

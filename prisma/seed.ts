@@ -31,6 +31,7 @@ async function main() {
   });
 
   const adminHash = await bcrypt.hash("admin", 10);
+  const developerHash = await bcrypt.hash("Developer", 10);
 
   const admin = await prisma.user.upsert({
     where: { username: "admin" },
@@ -54,8 +55,30 @@ async function main() {
     },
   });
 
+  const developer = await prisma.user.upsert({
+    where: { username: "developer" },
+    update: {
+      role: Role.DEVELOPER,
+      name: "System Developer",
+      passwordHash: developerHash,
+      provider: "credentials",
+      isBlocked: false,
+      blockedAt: null,
+      blockedReason: null,
+    },
+    create: {
+      username: "developer",
+      email: "developer@contextlm.local",
+      name: "System Developer",
+      passwordHash: developerHash,
+      role: Role.DEVELOPER,
+      provider: "credentials",
+      isBlocked: false,
+    },
+  });
+
   console.log(
-    `[ContextLM Seed] Cleaned ${deletedMockUsers.count} mock users & ${deletedMockLogs.count} mock logs. Admin ready: username="${admin.username}" / password="admin" (id=${admin.id})`
+    `[ContextLM Seed] Cleaned ${deletedMockUsers.count} mock users & ${deletedMockLogs.count} mock logs. Accounts ready: Admin ("${admin.username}" / "admin") & Developer ("Developer" / "Developer", id=${developer.id})`
   );
 }
 

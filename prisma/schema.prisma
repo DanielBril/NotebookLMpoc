@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  DEVELOPER
 }
 
 enum QueryStatus {
@@ -19,6 +20,13 @@ enum QueryStatus {
   BLOCKED_INJECTION
   BLOCKED_OUT_OF_SCOPE
   ERROR
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+  CRITICAL
 }
 
 model User {
@@ -72,7 +80,7 @@ model UsageLog {
   id               String      @id @default(cuid())
   userId           String
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  model            String      // e.g., "gpt-6-luna"
+  model            String      // e.g., "gpt-4o-mini"
   promptTokens     Int         @default(0)
   cachedTokens     Int         @default(0)
   completionTokens Int         @default(0)
@@ -88,5 +96,22 @@ model UsageLog {
 
   @@index([userId])
   @@index([hourOfDay])
+  @@index([createdAt])
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     LogLevel @default(INFO)
+  source    String   // e.g. "fileParser.pdf", "api.documents", "api.chat", "api.studio", "developer.repair"
+  message   String   @db.Text
+  stack     String?  @db.Text
+  meta      Json?    // Additional context (error codes, latency, file extension, etc.)
+  userId    String?
+  username  String?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([source])
   @@index([createdAt])
 }

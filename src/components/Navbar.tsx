@@ -10,6 +10,7 @@ import {
   LogOut,
   PanelRightOpen,
   Shield,
+  Terminal,
 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -17,7 +18,7 @@ import { useLanguage } from "@/lib/i18n";
 import { MAX_ACTIVE_CONTEXT_TOKENS, MAX_FILES_PER_USER } from "@/lib/constants";
 
 interface NavbarProps {
-  mode: "workspace" | "admin";
+  mode: "workspace" | "admin" | "developer";
   user: {
     username: string;
     name?: string | null;
@@ -39,7 +40,8 @@ export function Navbar({
   sidebarOpen,
 }: NavbarProps) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHe = lang === "he";
   const tokenRatio = Math.min(1, activeTokens / MAX_ACTIVE_CONTEXT_TOKENS);
   const isNearTokenLimit = tokenRatio >= 0.8;
   const initials = (user.name || user.username || "U")
@@ -55,7 +57,13 @@ export function Navbar({
         {/* Start: Brand + Page Title */}
         <div className="flex items-center gap-3 min-w-0">
           <Link
-            href={user.role === "ADMIN" && mode === "admin" ? "/admin" : "/workspace"}
+            href={
+              mode === "developer"
+                ? "/developer"
+                : mode === "admin"
+                  ? "/admin"
+                  : "/workspace"
+            }
             className="shrink-0 focus:outline-none"
           >
             <BrandLogo size={28} variant="light" />
@@ -63,14 +71,24 @@ export function Navbar({
           <span className="hidden sm:inline-block h-5 w-px bg-[#9db4c0]/25" />
           <div className="hidden sm:flex items-center gap-2 min-w-0">
             <h1 className="text-sm font-medium text-[#e0fbfc] truncate">
-              {mode === "admin"
-                ? t.navbar.adminPortalTitle
-                : t.navbar.workspaceTitle}
+              {mode === "developer"
+                ? isHe
+                  ? "מרכז דיאגנוסטיקה ולוגים למפתחים"
+                  : "Developer Ops & Diagnostics"
+                : mode === "admin"
+                  ? t.navbar.adminPortalTitle
+                  : t.navbar.workspaceTitle}
             </h1>
             {mode === "admin" && (
               <span className="inline-flex items-center gap-1 rounded-md bg-[#c2dfe3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#253237]">
                 <Shield className="h-3 w-3" />
                 {t.navbar.adminBadge}
+              </span>
+            )}
+            {mode === "developer" && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-[#e0fbfc] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#253237]">
+                <Terminal className="h-3 w-3" />
+                {isHe ? "מפתח" : "Developer"}
               </span>
             )}
           </div>
@@ -104,29 +122,49 @@ export function Navbar({
           </div>
         )}
 
-        {/* End: Language Toggle + Admin Switcher + Sidebar Toggle + User + Sign Out */}
+        {/* End: Language Toggle + Role Switchers + Sidebar Toggle + User + Sign Out */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <LanguageToggle variant="dark" id="navbar-lang-toggle" />
 
-          {user.role === "ADMIN" && (
-            <Link
-              id="nav-role-switcher"
-              href={mode === "admin" ? "/workspace" : "/admin"}
-              className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#e0fbfc] hover:bg-[#c2dfe3] px-2.5 py-1.5 text-xs font-semibold text-[#253237]"
-            >
-              {mode === "admin" ? (
-                <>
-                  <BookOpen className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t.navbar.workspaceBtn}</span>
-                </>
-              ) : (
-                <>
-                  <Activity className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t.navbar.adminPortalBtn}</span>
-                </>
-              )}
-            </Link>
-          )}
+          {(user.role === "ADMIN" || user.role === "DEVELOPER") &&
+            mode !== "workspace" && (
+              <Link
+                id="nav-workspace-link"
+                href="/workspace"
+                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#c2dfe3] hover:bg-[#e0fbfc] px-2.5 py-1.5 text-xs font-semibold text-[#253237]"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t.navbar.workspaceBtn}</span>
+              </Link>
+            )}
+
+          {(user.role === "ADMIN" || user.role === "DEVELOPER") &&
+            mode !== "admin" && (
+              <Link
+                id="nav-admin-link"
+                href="/admin"
+                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#e0fbfc] hover:bg-[#c2dfe3] px-2.5 py-1.5 text-xs font-semibold text-[#253237]"
+              >
+                <Activity className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {t.navbar.adminPortalBtn}
+                </span>
+              </Link>
+            )}
+
+          {(user.role === "DEVELOPER" || user.role === "ADMIN") &&
+            mode !== "developer" && (
+              <Link
+                id="nav-developer-link"
+                href="/developer"
+                className="interactive-chip inline-flex items-center gap-1.5 rounded-lg bg-[#5c6b73]/55 hover:bg-[#5c6b73] px-2.5 py-1.5 text-xs font-semibold text-[#e0fbfc] border border-[#9db4c0]/45"
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {isHe ? "פורטל מפתח" : "Dev Ops"}
+                </span>
+              </Link>
+            )}
 
           {mode === "workspace" && onToggleSidebar && (
             <button

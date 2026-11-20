@@ -17,7 +17,10 @@ export default async function AdminPage() {
     redirect("/login");
   }
 
-  if (session.user.role !== Role.ADMIN) {
+  if (
+    session.user.role !== Role.ADMIN &&
+    session.user.role !== Role.DEVELOPER
+  ) {
     redirect("/workspace");
   }
 

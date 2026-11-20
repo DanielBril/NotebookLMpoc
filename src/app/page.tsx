@@ -8,6 +8,10 @@ export default async function HomePage() {
     redirect("/login");
   }
 
+  if (session.user.role === "DEVELOPER") {
+    redirect("/developer");
+  }
+
   if (session.user.role === "ADMIN") {
     redirect("/admin");
   }

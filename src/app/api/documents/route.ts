@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
+import { ensurePdfDomPolyfills } from "@/lib/domMatrixPolyfill";
+import { sysLogger } from "@/lib/logger";
 import {
   MAX_ACTIVE_CONTEXT_TOKENS,
   MAX_FILE_SIZE_BYTES,
@@ -11,6 +13,7 @@ import {
 } from "@/lib/fileParser";
 
 export const runtime = "nodejs";
+ensurePdfDomPolyfills();
 
 function buildSummary(
   docs: Array<{ sizeBytes: number; tokenCount: number; isSelected: boolean }>
@@ -257,6 +260,19 @@ export async function POST(req: NextRequest) {
       select: { sizeBytes: true, tokenCount: true, isSelected: true },
     });
 
+    await sysLogger.info(
+      "api.documents.upload",
+      `Uploaded ${createdDocs.length} document(s): ${createdDocs.map((d) => d.filename).join(", ")}`,
+      {
+        userId: session.user.id,
+        username: session.user.username,
+        meta: {
+          count: createdDocs.length,
+          totalTokensAdded: createdDocs.reduce((s, d) => s + d.tokenCount, 0),
+        },
+      }
+    );
+
     return NextResponse.json(
       {
         documents: createdDocs,
@@ -266,7 +282,15 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[Documents POST] Error:", error);
+    await sysLogger.error(
+      "api.documents.upload",
+      "Unhandled exception while processing uploaded documents",
+      {
+        error,
+        userId: session.user.id,
+        username: session.user.username,
+      }
+    );
     return NextResponse.json(
       { error: "Failed to process uploaded documents." },
       { status: 500 }
