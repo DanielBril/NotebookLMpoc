@@ -13,7 +13,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CalendarDays, Flame } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
 export interface HourlyBucket {
@@ -60,37 +59,29 @@ export function PeakHoursChart({
   );
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-      {/* 24-Hour Activity Distribution Bar Chart */}
-      <div className="animate-fade-in-up stagger-2 interactive-card xl:col-span-7 rounded-2xl bg-white border border-[#9db4c0]/45 p-5 shadow-[0_2px_10px_rgba(37,50,55,0.04)]">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+    <section className="grid grid-cols-1 xl:grid-cols-12 gap-10 border-t border-[#253237]/10 pt-8">
+      {/* 24-Hour Activity Distribution */}
+      <div className="xl:col-span-7 space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-[#253237]">
+            <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
               {t.admin.chart24hTitle}
             </h2>
-            <p className="text-xs text-[#5c6b73] mt-0.5">
+            <p className="text-sm text-[#5c6b73] mt-0.5">
               {t.admin.chart24hSubtitle}
             </p>
           </div>
-
-          {peakWindowSummary ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#253237] px-3 py-1 text-xs font-semibold text-[#e0fbfc] border border-[#5c6b73]">
-              <Flame className="h-3.5 w-3.5 text-[#c2dfe3]" />
-              <span>
-                {t.admin.chartPeakWindow(
+          <p className="font-mono text-xs text-[#5c6b73]">
+            {peakWindowSummary
+              ? t.admin.chartPeakWindow(
                   peakWindowSummary.label,
                   peakWindowSummary.sharePercent
-                )}
-              </span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e0fbfc] px-3 py-1 text-xs font-medium text-[#5c6b73] border border-[#9db4c0]/45">
-              <span>{t.admin.chartAwaitingTelemetry}</span>
-            </div>
-          )}
+                )
+              : t.admin.chartAwaitingTelemetry}
+          </p>
         </div>
 
-        <div className="h-[260px] w-full" dir="ltr">
+        <div className="h-[240px] w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={hourlyDistribution}
@@ -99,13 +90,13 @@ export function PeakHoursChart({
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="rgba(92,107,115,0.16)"
+                stroke="rgba(37,50,55,0.08)"
               />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 10, fill: "#5c6b73" }}
                 interval={2}
-                axisLine={{ stroke: "rgba(92,107,115,0.25)" }}
+                axisLine={{ stroke: "rgba(37,50,55,0.12)" }}
                 tickLine={false}
               />
               <YAxis
@@ -115,17 +106,18 @@ export function PeakHoursChart({
                 tickLine={false}
               />
               <Tooltip
-                cursor={{ fill: "rgba(224, 251, 252, 0.55)" }}
+                cursor={{ fill: "rgba(37, 50, 55, 0.04)" }}
                 contentStyle={{
                   backgroundColor: "#ffffff",
-                  border: "1px solid rgba(37,50,55,0.22)",
-                  borderRadius: "12px",
+                  border: "1px solid rgba(37,50,55,0.14)",
+                  borderRadius: "8px",
                   fontSize: "12px",
                   color: "#253237",
-                  boxShadow: "0 10px 26px rgba(37,50,55,0.12)",
+                  boxShadow: "0 6px 18px rgba(37,50,55,0.08)",
                 }}
                 formatter={(value, name) => {
-                  const num = typeof value === "number" ? value : Number(value ?? 0);
+                  const num =
+                    typeof value === "number" ? value : Number(value ?? 0);
                   if (name === "queries") {
                     return [
                       t.admin.chartQueriesValue(num.toLocaleString()),
@@ -142,13 +134,11 @@ export function PeakHoursChart({
                   return `${String(label)} UTC${item?.isPeak ? t.admin.chartPeakTag : ""}${tokenNote}`;
                 }}
               />
-              <Bar dataKey="queries" radius={[5, 5, 0, 0]} maxBarSize={24}>
+              <Bar dataKey="queries" radius={[3, 3, 0, 0]} maxBarSize={22}>
                 {hourlyDistribution.map((entry) => (
                   <Cell
                     key={`hour-${entry.hour}`}
                     fill={entry.isPeak ? "#253237" : "#c2dfe3"}
-                    stroke={entry.isPeak ? "#253237" : "#9db4c0"}
-                    strokeWidth={entry.isPeak ? 1.5 : 1}
                   />
                 ))}
               </Bar>
@@ -156,35 +146,30 @@ export function PeakHoursChart({
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3 flex items-center gap-4 text-[11px] text-[#5c6b73]">
+        <div className="flex items-center gap-4 text-[11px] text-[#5c6b73]">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-xs bg-[#253237]" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-[#253237]" />
             {t.admin.chartLegendPeak}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-xs bg-[#c2dfe3] border border-[#9db4c0]" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-[#c2dfe3]" />
             {t.admin.chartLegendStandard}
           </span>
         </div>
       </div>
 
       {/* Day-of-Week Activity & Latency Breakdown */}
-      <div className="animate-fade-in-up stagger-3 interactive-card xl:col-span-5 rounded-2xl bg-white border border-[#9db4c0]/45 p-5 shadow-[0_2px_10px_rgba(37,50,55,0.04)]">
-        <div className="flex items-start justify-between gap-2 mb-5">
-          <div>
-            <h2 className="text-sm font-semibold text-[#253237]">
-              {t.admin.chartWeeklyTitle}
-            </h2>
-            <p className="text-xs text-[#5c6b73] mt-0.5">
-              {t.admin.chartWeeklySubtitle}
-            </p>
-          </div>
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e0fbfc] text-[#253237] border border-[#9db4c0]/45">
-            <CalendarDays className="h-4 w-4" />
-          </span>
+      <div className="xl:col-span-5 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
+            {t.admin.chartWeeklyTitle}
+          </h2>
+          <p className="text-sm text-[#5c6b73] mt-0.5">
+            {t.admin.chartWeeklySubtitle}
+          </p>
         </div>
 
-        <div className="h-[260px] w-full" dir="ltr">
+        <div className="h-[240px] w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={localizedDays}
@@ -193,12 +178,12 @@ export function PeakHoursChart({
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="rgba(92,107,115,0.16)"
+                stroke="rgba(37,50,55,0.08)"
               />
               <XAxis
                 dataKey="localizedDay"
                 tick={{ fontSize: 11, fill: "#5c6b73" }}
-                axisLine={{ stroke: "rgba(92,107,115,0.25)" }}
+                axisLine={{ stroke: "rgba(37,50,55,0.12)" }}
                 tickLine={false}
               />
               <YAxis
@@ -219,21 +204,20 @@ export function PeakHoursChart({
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#ffffff",
-                  border: "1px solid rgba(37,50,55,0.22)",
-                  borderRadius: "12px",
+                  border: "1px solid rgba(37,50,55,0.14)",
+                  borderRadius: "8px",
                   fontSize: "12px",
                   color: "#253237",
+                  boxShadow: "0 6px 18px rgba(37,50,55,0.08)",
                 }}
               />
               <Bar
                 yAxisId="left"
                 dataKey="queries"
                 name={t.admin.chartLegendVolume}
-                fill="#9db4c0"
-                stroke="#5c6b73"
-                strokeWidth={1}
-                radius={[5, 5, 0, 0]}
-                maxBarSize={28}
+                fill="#c2dfe3"
+                radius={[3, 3, 0, 0]}
+                maxBarSize={26}
               />
               <Line
                 yAxisId="right"
@@ -241,29 +225,29 @@ export function PeakHoursChart({
                 dataKey="avgLatencyMs"
                 name={t.admin.chartLegendLatency}
                 stroke="#253237"
-                strokeWidth={2.2}
+                strokeWidth={2}
                 dot={{
-                  r: 3.8,
-                  fill: "#e0fbfc",
+                  r: 3,
+                  fill: "#ffffff",
                   stroke: "#253237",
-                  strokeWidth: 1.8,
+                  strokeWidth: 1.5,
                 }}
               />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3 flex items-center gap-4 text-[11px] text-[#5c6b73]">
+        <div className="flex items-center gap-4 text-[11px] text-[#5c6b73]">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-xs bg-[#9db4c0] border border-[#5c6b73]/50" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-[#c2dfe3]" />
             {t.admin.chartLegendVolume}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#e0fbfc] border-[1.5px] border-[#253237]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-white border-[1.5px] border-[#253237]" />
             {t.admin.chartLegendLatency}
           </span>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

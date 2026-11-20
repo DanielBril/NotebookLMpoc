@@ -1,17 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  ArrowUpDown,
-  Ban,
-  CheckCircle2,
-  Loader2,
-  Search,
-  Shield,
-  ShieldAlert,
-  Unlock,
-  X,
-} from "lucide-react";
+import { ArrowUpDown, Loader2, Search, X } from "lucide-react";
 import { formatUsd } from "@/lib/pricing";
 import { useLanguage, type Translations } from "@/lib/i18n";
 
@@ -139,20 +129,20 @@ export function UsersTable({
 
   return (
     <>
-      <div className="animate-fade-in-up stagger-3 rounded-2xl bg-white border border-[#9db4c0]/45 shadow-[0_2px_10px_rgba(37,50,55,0.04)] overflow-hidden">
-        <div className="p-5 border-b border-[#9db4c0]/35 flex flex-wrap items-center justify-between gap-3">
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-[#253237]">
+            <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
               {t.admin.usersTableTitle}
             </h2>
-            <p className="text-xs text-[#5c6b73] mt-0.5">
+            <p className="text-sm text-[#5c6b73] mt-0.5">
               {t.admin.usersTableSubtitle}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-            {/* Status Filter Pills */}
-            <div className="inline-flex rounded-xl bg-[#f2fafb] p-1 border border-[#9db4c0]/45 text-[11px] font-semibold">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Status Filter Tabs */}
+            <div className="inline-flex items-center gap-1 text-xs">
               {(["all", "active", "blocked"] as const).map((tab) => {
                 const active = statusFilter === tab;
                 const label =
@@ -166,9 +156,9 @@ export function UsersTable({
                     key={tab}
                     type="button"
                     onClick={() => setStatusFilter(tab)}
-                    className={`rounded-lg px-2.5 py-1 transition-all cursor-pointer ${
+                    className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
                       active
-                        ? "bg-[#253237] text-[#e0fbfc] shadow-xs"
+                        ? "bg-[#253237]/8 text-[#253237] font-semibold"
                         : "text-[#5c6b73] hover:text-[#253237]"
                     }`}
                   >
@@ -179,25 +169,25 @@ export function UsersTable({
             </div>
 
             {/* Search Input */}
-            <div className="relative flex-1 sm:flex-none sm:w-60">
-              <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#5c6b73]" />
+            <div className="relative flex-1 sm:flex-none sm:w-56">
+              <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#9db4c0]" />
               <input
                 id="admin-users-search"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.admin.searchPlaceholder}
-                className="w-full rounded-xl bg-[#f2fafb] ps-8 pe-3 py-1.5 text-xs text-[#253237] placeholder:text-[#5c6b73]/65 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                className="w-full rounded-lg bg-[#f8fafb] ps-8 pe-3 py-1.5 text-xs text-[#253237] placeholder:text-[#5c6b73]/65 border border-[#253237]/15 focus:outline-none focus:border-[#253237] focus:bg-white transition-colors"
               />
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border-t border-[#253237]/10">
           <table className="w-full text-start border-collapse text-xs">
             <thead>
-              <tr className="bg-[#f2fafb] text-[11px] font-semibold uppercase tracking-wider text-[#5c6b73] border-b border-[#9db4c0]/35">
-                <th className="py-3 px-4 text-start">
+              <tr className="text-[11px] font-medium text-[#5c6b73] border-b border-[#253237]/10">
+                <th className="py-2.5 pe-4 text-start">
                   <button
                     type="button"
                     onClick={() => toggleSort("username")}
@@ -207,8 +197,8 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-start">{t.admin.colStatus}</th>
-                <th className="py-3 px-3 text-start">
+                <th className="py-2.5 px-3 text-start">{t.admin.colStatus}</th>
+                <th className="py-2.5 px-3 text-start">
                   <button
                     type="button"
                     onClick={() => toggleSort("totalFiles")}
@@ -218,7 +208,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-start">
+                <th className="py-2.5 px-3 text-start">
                   <button
                     type="button"
                     onClick={() => toggleSort("validQueries")}
@@ -228,7 +218,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-end">
+                <th className="py-2.5 px-3 text-end">
                   <button
                     type="button"
                     onClick={() => toggleSort("promptTokens")}
@@ -238,7 +228,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-end">
+                <th className="py-2.5 px-3 text-end">
                   <button
                     type="button"
                     onClick={() => toggleSort("completionTokens")}
@@ -248,7 +238,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-end">
+                <th className="py-2.5 px-3 text-end">
                   <button
                     type="button"
                     onClick={() => toggleSort("totalTokens")}
@@ -258,7 +248,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-end">
+                <th className="py-2.5 px-3 text-end">
                   <button
                     type="button"
                     onClick={() => toggleSort("estimatedCostUsd")}
@@ -268,7 +258,7 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-3 text-end">
+                <th className="py-2.5 px-3 text-end">
                   <button
                     type="button"
                     onClick={() => toggleSort("lastActiveAt")}
@@ -278,15 +268,15 @@ export function UsersTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="py-3 px-4 text-end">{t.admin.colActions}</th>
+                <th className="py-2.5 ps-3 text-end">{t.admin.colActions}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#9db4c0]/25">
+            <tbody className="divide-y divide-[#253237]/8">
               {filteredAndSorted.length === 0 ? (
                 <tr>
                   <td
                     colSpan={10}
-                    className="py-8 text-center text-xs text-[#5c6b73]"
+                    className="py-10 text-center text-sm text-[#5c6b73]"
                   >
                     {t.admin.noMatchingUsers}
                   </td>
@@ -302,107 +292,75 @@ export function UsersTable({
                   return (
                     <tr
                       key={u.id}
-                      className={`transition-colors ${
-                        u.isBlocked
-                          ? "bg-[#e0fbfc]/35 hover:bg-[#e0fbfc]/60"
-                          : "hover:bg-[#c2dfe3]/20"
+                      className={`hover:bg-[#f8fafb] transition-colors ${
+                        u.isBlocked ? "opacity-75" : ""
                       }`}
                     >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`h-8 w-8 rounded-full font-bold text-[11px] flex items-center justify-center shrink-0 ${
-                              u.isBlocked
-                                ? "bg-[#253237] text-[#e0fbfc]"
-                                : "bg-[#c2dfe3] text-[#253237]"
-                            }`}
-                          >
-                            {u.username.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-[#253237] truncate">
-                                {u.name}
+                      <td className="py-3 pe-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#253237] truncate">
+                            {u.name}
+                            {(u.role === "ADMIN" || u.role === "DEVELOPER") && (
+                              <span className="ms-2 font-mono text-[10px] uppercase text-[#5c6b73]">
+                                {u.role === "ADMIN" ? t.navbar.adminBadge : "DEV"}
                               </span>
-                              {u.role === "ADMIN" && (
-                                <span className="inline-flex items-center gap-0.5 rounded bg-[#253237] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#e0fbfc]">
-                                  <Shield className="h-2.5 w-2.5" />
-                                  {t.navbar.adminBadge}
-                                </span>
-                              )}
-                              {u.role === "DEVELOPER" && (
-                                <span className="inline-flex items-center gap-0.5 rounded bg-[#5c6b73] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#e0fbfc]">
-                                  <Shield className="h-2.5 w-2.5" />
-                                  DEV
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-[#5c6b73]">
-                              <span className="font-mono" dir="ltr">
-                                @{u.username}
-                              </span>
-                              <span>•</span>
-                              <span className="rounded bg-[#f2fafb] px-1.5 py-0.2 border border-[#9db4c0]/40">
-                                {u.provider === "google"
-                                  ? t.admin.providerGoogle
-                                  : t.admin.providerCredentials}
-                              </span>
-                            </div>
-                          </div>
+                            )}
+                          </p>
+                          <p className="text-[11px] font-mono text-[#9db4c0]" dir="ltr">
+                            @{u.username} ·{" "}
+                            {u.provider === "google"
+                              ? t.admin.providerGoogle
+                              : t.admin.providerCredentials}
+                          </p>
                         </div>
                       </td>
 
                       <td className="py-3 px-3 whitespace-nowrap">
                         {u.isBlocked ? (
-                          <div className="space-y-0.5">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#253237] px-2.5 py-0.5 text-[10px] font-bold text-[#e0fbfc]">
-                              <Ban className="h-2.5 w-2.5" />
+                          <div>
+                            <span className="font-semibold text-[#253237]">
                               {t.admin.statusBlocked}
                             </span>
                             {u.blockedReason && (
                               <p
                                 title={u.blockedReason}
-                                className="max-w-[140px] truncate text-[10px] text-[#5c6b73]"
+                                className="max-w-[140px] truncate text-[10px] text-[#9db4c0]"
                               >
                                 {u.blockedReason}
                               </p>
                             )}
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#e0fbfc] px-2.5 py-0.5 text-[10px] font-semibold text-[#253237] border border-[#9db4c0]/60">
-                            <CheckCircle2 className="h-2.5 w-2.5 text-[#5c6b73]" />
+                          <span className="text-[#5c6b73]">
                             {t.admin.statusActive}
                           </span>
                         )}
                       </td>
 
                       <td className="py-3 px-3 font-mono">
-                        <span className="font-semibold text-[#253237]">
+                        <span className="font-medium text-[#253237]">
                           {u.activeFiles}
                         </span>
-                        <span className="text-[#5c6b73]"> / 10</span>
-                        <p className="text-[10px] text-[#5c6b73]">
+                        <span className="text-[#9db4c0]">/10</span>
+                        <p className="text-[10px] text-[#9db4c0]">
                           {t.admin.totalFilesSub(u.totalFiles)}
                         </p>
                       </td>
 
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-1.5 font-mono">
-                          <span className="font-semibold text-[#253237]">
-                            {u.validQueries}
+                      <td className="py-3 px-3 font-mono">
+                        <span className="font-medium text-[#253237]">
+                          {u.validQueries}
+                        </span>
+                        {u.dangerousFlags > 0 && (
+                          <span
+                            title={t.admin.dangerousFlagsTooltip(
+                              u.dangerousFlags
+                            )}
+                            className="ms-1.5 text-[11px] font-semibold text-[#253237]"
+                          >
+                            ({u.dangerousFlags}!)
                           </span>
-                          {u.dangerousFlags > 0 && (
-                            <span
-                              title={t.admin.dangerousFlagsTooltip(
-                                u.dangerousFlags
-                              )}
-                              className="inline-flex items-center gap-0.5 rounded-full bg-[#253237] px-1.5 py-0.5 text-[10px] font-bold text-[#e0fbfc]"
-                            >
-                              <ShieldAlert className="h-2.5 w-2.5" />
-                              {u.dangerousFlags}
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </td>
 
                       <td
@@ -413,7 +371,7 @@ export function UsersTable({
                       >
                         <div>{u.promptTokens.toLocaleString()}</div>
                         {u.cachedTokens > 0 && (
-                          <div className="text-[10px] text-[#5c6b73]">
+                          <div className="text-[10px] text-[#9db4c0]">
                             {t.admin.cachedSub(u.cachedTokens.toLocaleString())}
                           </div>
                         )}
@@ -423,27 +381,24 @@ export function UsersTable({
                         {u.completionTokens.toLocaleString()}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono font-bold text-[#253237]">
+                      <td className="py-3 px-3 text-end font-mono font-semibold text-[#253237]">
                         {u.totalTokens.toLocaleString()}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono">
-                        <span
-                          dir="ltr"
-                          className="rounded-md bg-[#e0fbfc] px-2 py-0.5 font-semibold text-[#253237] border border-[#9db4c0]/45"
-                        >
-                          {formatUsd(u.estimatedCostUsd)}
-                        </span>
+                      <td
+                        dir="ltr"
+                        className="py-3 px-3 text-end font-mono font-medium text-[#253237]"
+                      >
+                        {formatUsd(u.estimatedCostUsd)}
                       </td>
 
-                      <td className="py-3 px-3 text-end font-mono text-[#5c6b73] whitespace-nowrap">
+                      <td className="py-3 px-3 text-end font-mono text-[#9db4c0] whitespace-nowrap">
                         {formatRelativeTime(u.lastActiveAt, t)}
                       </td>
 
-                      <td className="py-3 px-4 text-end whitespace-nowrap">
+                      <td className="py-3 ps-3 text-end whitespace-nowrap">
                         {isSelfOrAdmin ? (
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-[#f2fafb] px-2.5 py-1 text-[11px] font-medium text-[#5c6b73] border border-[#9db4c0]/35">
-                            <Shield className="h-3 w-3" />
+                          <span className="text-[11px] text-[#9db4c0]">
                             {t.admin.protectedAdmin}
                           </span>
                         ) : u.isBlocked ? (
@@ -452,12 +407,10 @@ export function UsersTable({
                             type="button"
                             disabled={isBusy}
                             onClick={() => void onToggleBlockUser(u.id, false)}
-                            className="interactive-chip inline-flex items-center gap-1 rounded-lg bg-[#c2dfe3] hover:bg-[#9db4c0] px-2.5 py-1.5 text-[11px] font-semibold text-[#253237] disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-md border border-[#253237]/20 px-2.5 py-1 text-xs font-medium text-[#253237] hover:border-[#253237] disabled:opacity-40 transition-colors cursor-pointer"
                           >
-                            {isBusy ? (
+                            {isBusy && (
                               <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Unlock className="h-3 w-3" />
                             )}
                             <span>
                               {isBusy
@@ -474,12 +427,10 @@ export function UsersTable({
                               setBlockModalUser(u);
                               setBlockReason("");
                             }}
-                            className="interactive-chip inline-flex items-center gap-1 rounded-lg bg-[#253237] hover:bg-[#5c6b73] px-2.5 py-1.5 text-[11px] font-semibold text-[#e0fbfc] disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-md border border-[#253237]/20 px-2.5 py-1 text-xs font-medium text-[#5c6b73] hover:text-[#253237] hover:border-[#253237] disabled:opacity-40 transition-colors cursor-pointer"
                           >
-                            {isBusy ? (
+                            {isBusy && (
                               <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Ban className="h-3 w-3" />
                             )}
                             <span>
                               {isBusy ? t.admin.blocking : t.admin.blockBtn}
@@ -494,43 +445,38 @@ export function UsersTable({
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {/* Block User Confirmation Modal */}
       {blockModalUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#253237]/50 backdrop-blur-xs p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#253237]/40 backdrop-blur-xs p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="animate-modal-in w-full max-w-md rounded-2xl bg-white border border-[#9db4c0]/60 shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 bg-[#253237] text-[#e0fbfc] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e0fbfc] text-[#253237]">
-                  <Ban className="h-4 w-4" />
-                </span>
-                <h3 className="text-sm font-semibold">
-                  {t.admin.blockModalTitle(blockModalUser.username)}
-                </h3>
-              </div>
+          <div className="w-full max-w-md rounded-xl bg-white border border-[#253237]/12 shadow-[0_12px_36px_rgba(37,50,55,0.16)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#253237]/10 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[#253237]">
+                {t.admin.blockModalTitle(blockModalUser.username)}
+              </h3>
               <button
                 type="button"
                 onClick={() => setBlockModalUser(null)}
-                className="rounded-md p-1 text-[#c2dfe3] hover:text-white cursor-pointer"
+                className="rounded-md p-1 text-[#5c6b73] hover:text-[#253237] cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <p className="text-xs leading-relaxed text-[#5c6b73]">
+              <p className="text-sm leading-relaxed text-[#5c6b73]">
                 {t.admin.blockModalDesc}
               </p>
 
               <div>
                 <label
                   htmlFor="block-reason-input"
-                  className="block text-xs font-semibold text-[#253237] mb-1.5"
+                  className="block text-xs font-medium text-[#253237] mb-1.5"
                 >
                   {t.admin.blockReasonLabel}
                 </label>
@@ -541,7 +487,7 @@ export function UsersTable({
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
                   placeholder={t.admin.blockReasonPlaceholder}
-                  className="w-full rounded-xl bg-[#f2fafb] p-3 text-xs text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/60 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                  className="w-full rounded-lg bg-[#f8fafb] p-3 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#253237]/18 focus:outline-none focus:border-[#253237] focus:bg-white transition-colors"
                 />
               </div>
 
@@ -549,7 +495,7 @@ export function UsersTable({
                 <button
                   type="button"
                   onClick={() => setBlockModalUser(null)}
-                  className="rounded-xl bg-[#f2fafb] hover:bg-[#c2dfe3]/50 px-3.5 py-2 text-xs font-semibold text-[#253237] border border-[#9db4c0]/55 transition-colors cursor-pointer"
+                  className="rounded-lg px-3.5 py-2 text-xs font-medium text-[#5c6b73] hover:text-[#253237] transition-colors cursor-pointer"
                 >
                   {t.admin.cancel}
                 </button>
@@ -558,12 +504,10 @@ export function UsersTable({
                   type="button"
                   disabled={pendingBlockUserId === blockModalUser.id}
                   onClick={() => void handleConfirmBlock()}
-                  className="btn-jet inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer"
+                  className="btn-jet inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium cursor-pointer"
                 >
-                  {pendingBlockUserId === blockModalUser.id ? (
+                  {pendingBlockUserId === blockModalUser.id && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Ban className="h-3.5 w-3.5" />
                   )}
                   <span>{t.admin.confirmBlock}</span>
                 </button>

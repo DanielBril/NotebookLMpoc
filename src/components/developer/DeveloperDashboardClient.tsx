@@ -1,22 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Cpu,
-  Database,
-  DollarSign,
-  FileWarning,
-  Loader2,
-  RefreshCw,
-  Server,
-  ShieldCheck,
-  Terminal,
-  Trash2,
-  Wrench,
-} from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PipelineInspectorPanel } from "@/components/admin/PipelineInspectorPanel";
 import { formatTokensCompact, formatUsd } from "@/lib/pricing";
@@ -250,62 +235,129 @@ export function DeveloperDashboardClient({
     });
   }, [data, logFilter]);
 
+  const h = data?.health;
+  const eco = data?.economics;
+  const anom = data?.anomalies;
+
+  const repairs: Array<{
+    id: string;
+    action: RepairAction;
+    title: string;
+    desc: string;
+    stat: string | null;
+    cta: string;
+  }> = data
+    ? [
+        {
+          id: "repair-pdf-polyfill-btn",
+          action: "VERIFY_PDF_POLYFILL",
+          title: isHe ? "בדיקת מנוע PDF ו-DOMMatrix" : "Verify PDF / DOMMatrix engine",
+          desc: isHe
+            ? "מוודא שה-polyfills פעילים ומפענח PDF בדיקה בזיכרון."
+            : "Confirms polyfills are active and parses an in-memory test PDF.",
+          stat: data.health.domMatrixPolyfillActive ? "Ready" : "Needs fix",
+          cta: isHe ? "הרץ בדיקה" : "Run test",
+        },
+        {
+          id: "repair-recalc-tokens-btn",
+          action: "RECALCULATE_DOCUMENT_TOKENS",
+          title: isHe ? "חישוב טוקנים מחדש" : "Recalculate document tokens",
+          desc: isHe
+            ? "מחשב מחדש טוקנים ומבטל סימון קבצים החורגים מ-150k."
+            : "Recomputes counts and unchecks files over the 150k ceiling.",
+          stat: `${data.anomalies.usersOverTokenCap} over cap`,
+          cta: isHe ? "תקן" : "Repair",
+        },
+        {
+          id: "repair-purge-docs-btn",
+          action: "PURGE_CORRUPTED_DOCUMENTS",
+          title: isHe ? "ניקוי מסמכים פגומים" : "Purge corrupted documents",
+          desc: isHe
+            ? "מסיר מסמכים ללא טקסט (0 טוקנים או 0 בתים)."
+            : "Removes zero-byte or zero-token documents to free file slots.",
+          stat: `${data.anomalies.corruptedOrEmptyDocs} found`,
+          cta: isHe ? "נקה" : "Purge",
+        },
+        {
+          id: "repair-resolve-errors-btn",
+          action: "RESOLVE_ALL_ERRORS",
+          title: isHe ? "סימון שגיאות כטופלו" : "Resolve open errors",
+          desc: isHe
+            ? "מסמן שגיאות פתוחות כטופלו ומנקה קריאות שנכשלו."
+            : "Marks open system errors resolved and clears failed usage entries.",
+          stat: `${data.anomalies.unresolvedErrorsCount + data.anomalies.failedQueryLogsCount} open`,
+          cta: isHe ? "אפס" : "Resolve all",
+        },
+        {
+          id: "repair-reset-accounts-btn",
+          action: "RESET_ADMIN_AND_DEV_ACCOUNTS",
+          title: isHe ? "שחזור חשבונות מערכת" : "Restore system accounts",
+          desc: isHe
+            ? "מוודא ש-admin ו-Developer קיימים, לא חסומים, עם סיסמאות ברירת מחדל."
+            : "Ensures admin and Developer exist, are unblocked, with default passwords.",
+          stat: null,
+          cta: isHe ? "שחזר" : "Restore",
+        },
+        {
+          id: "repair-unblock-users-btn",
+          action: "UNBLOCK_ALL_USERS",
+          title: isHe ? "שחרור משתמשים חסומים" : "Unblock all users",
+          desc: isHe
+            ? "משחרר את כל החשבונות החסומים בלחיצה אחת."
+            : "Lifts every active block in one step.",
+          stat: `${data.anomalies.blockedUsersCount} blocked`,
+          cta: isHe ? "שחרר" : "Unblock",
+        },
+      ]
+    : [];
+
+  const th =
+    "py-2 pe-4 text-[11px] font-medium text-[#5c6b73] text-start whitespace-nowrap";
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#f2fafb]">
+    <div className="min-h-screen flex flex-col bg-white">
       <Navbar mode="developer" user={user} />
 
-      <main className="flex-1 mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Header Bar */}
-        <div className="animate-fade-in-up flex flex-wrap items-center justify-between gap-3">
+      <main className="flex-1 mx-auto w-full max-w-[1100px] px-4 sm:px-8 py-10 space-y-12">
+        {/* Header: title + the one primary action */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#253237]">
-                {isHe
-                  ? "מרכז שליטה, לוגים ותיקון עצמי למפתחים (Developer Ops)"
-                  : "Developer System Diagnostics, Error Logs & Self-Healing Console"}
-              </h2>
-              <span className="rounded-md bg-[#253237] px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-[#e0fbfc]">
-                DEVELOPER
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-[#5c6b73] mt-0.5">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#253237]">
+              {isHe ? "דיאגנוסטיקה ולוגים" : "Diagnostics & logs"}
+            </h1>
+            <p className="mt-1 text-sm text-[#5c6b73]">
               {isHe
-                ? "ניטור שגיאות מערכת, בריאות שרת ו-DOMMatrix, עלויות וחיסכון מטמון, וכלי תיקון אוטומטיים בלחיצה"
-                : "Real-time system & stack-trace logs, DOMMatrix/PDF runtime health, deep token cost economics, and one-click self-healing tools"}
+                ? "בריאות מערכת, עלויות, שגיאות וכלי תיקון."
+                : "System health, cost, errors and repair tools."}
+              {data && (
+                <span className="font-mono text-xs text-[#9db4c0]" dir="ltr">
+                  {" "}
+                  · {new Date(data.generatedAt).toLocaleTimeString()}
+                </span>
+              )}
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            {data && (
-              <span className="hidden sm:inline font-mono text-[11px] text-[#5c6b73]">
-                {new Date(data.generatedAt).toLocaleTimeString()}
-              </span>
-            )}
-            <button
-              id="dev-refresh-btn"
-              type="button"
-              disabled={isRefreshing}
-              onClick={() => void handleRefresh()}
-              className="btn-jet inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold cursor-pointer"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              <span>{isHe ? "רענון דיאגנוסטיקה" : "Refresh Diagnostics"}</span>
-            </button>
-          </div>
+          <button
+            id="dev-refresh-btn"
+            type="button"
+            disabled={isRefreshing}
+            onClick={() => void handleRefresh()}
+            className="btn-jet inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium cursor-pointer"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            {isHe ? "רענון" : "Refresh"}
+          </button>
         </div>
 
         {repairFeedback && (
-          <div className="animate-toast-in rounded-xl bg-[#e0fbfc] border-[1.5px] border-[#253237] px-4 py-3 text-xs font-semibold text-[#253237] flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#253237]" />
-              <span>{repairFeedback}</span>
-            </div>
+          <div className="flex items-center justify-between gap-3 border-s-2 border-[#253237] bg-[#f8fafb] px-4 py-3 text-sm text-[#253237]">
+            <span>{repairFeedback}</span>
             <button
               type="button"
               onClick={() => setRepairFeedback(null)}
-              className="text-xs underline cursor-pointer"
+              className="text-xs text-[#5c6b73] hover:text-[#253237] underline cursor-pointer"
             >
               {isHe ? "סגור" : "Dismiss"}
             </button>
@@ -313,504 +365,138 @@ export function DeveloperDashboardClient({
         )}
 
         {error && (
-          <div className="animate-toast-in rounded-xl bg-[#253237] px-4 py-3 text-xs font-medium text-[#e0fbfc] border border-[#5c6b73]">
+          <div className="border-s-2 border-[#253237] bg-[#f8fafb] px-4 py-3 text-sm text-[#253237]">
             {error}
           </div>
         )}
 
-        {isLoading || !data ? (
-          <div className="py-24 flex flex-col items-center justify-center gap-3 text-[#5c6b73]">
-            <Loader2 className="h-6 w-6 animate-spin text-[#253237]" />
-            <p className="text-sm font-medium">
-              {isHe
-                ? "טוען לוגים ודיאגנוסטיקת מערכת…"
-                : "Loading developer diagnostics & system logs…"}
+        {isLoading || !data || !h || !eco || !anom ? (
+          <div className="py-24 flex flex-col items-center gap-3 text-[#5c6b73]">
+            <Loader2 className="h-5 w-5 animate-spin text-[#253237]" />
+            <p className="text-sm">
+              {isHe ? "טוען דיאגנוסטיקה…" : "Loading diagnostics…"}
             </p>
           </div>
         ) : (
           <>
-            {/* 1. System Health & Runtime Status Strip */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              {/* Runtime & DB Health */}
-              <div className="animate-fade-in-up stagger-1 interactive-card rounded-2xl bg-white border border-[#9db4c0]/50 border-t-4 border-t-[#e0fbfc] p-5 shadow-xs space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#5c6b73]">
-                    {isHe ? "בריאות מסד נתונים ושרת" : "DB & Runtime Health"}
-                  </span>
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e0fbfc] text-[#253237]">
-                    <Database className="h-4 w-4" />
-                  </span>
+            {/* Level 1: key figures as an open strip, no cards */}
+            <section
+              dir="ltr"
+              className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8 border-y border-[#253237]/10 py-8"
+            >
+              {[
+                {
+                  label: isHe ? "מסד נתונים" : "Database",
+                  value: `${h.dbPingMs}ms`,
+                  note: `Node ${h.nodeVersion} · ${h.heapUsedMb}/${h.rssMb} MB`,
+                },
+                {
+                  label: isHe ? "עלות כוללת" : "Total cost",
+                  value: formatUsd(eco.actualCostUsd),
+                  note: `${isHe ? "נחסך" : "Saved"} ${formatUsd(eco.savedByCacheUsd)} (${eco.cacheHitRatePercent}%) · ${formatTokensCompact(eco.totalTokens)} tok`,
+                },
+                {
+                  label: isHe ? "השהיה P50 / P95" : "Latency P50 / P95",
+                  value: `${eco.p50LatencyMs}/${eco.p95LatencyMs}ms`,
+                  note: `P99 ${eco.p99LatencyMs}ms`,
+                },
+                {
+                  label: isHe ? "שגיאות פתוחות" : "Open errors",
+                  value: String(anom.unresolvedErrorsCount),
+                  note: `${anom.failedQueryLogsCount} ${isHe ? "קריאות שנכשלו" : "failed calls"} · PDF engine ${h.domMatrixPolyfillActive ? "ready" : "missing DOMMatrix"}`,
+                },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="text-xs text-[#5c6b73]">{s.label}</p>
+                  <p className="mt-1.5 text-3xl font-semibold tracking-tight text-[#253237] font-mono">
+                    {s.value}
+                  </p>
+                  <p className="mt-1.5 text-[11px] font-mono text-[#9db4c0]">
+                    {s.note}
+                  </p>
                 </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-[#253237]">
-                    {data.health.dbPingMs}ms
-                  </span>
-                  <span className="rounded-full bg-[#e0fbfc] px-2.5 py-0.5 text-[11px] font-bold text-[#253237] border border-[#9db4c0]/60">
-                    PostgreSQL OK
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#5c6b73] flex items-center justify-between">
-                  <span>Node {data.health.nodeVersion}</span>
-                  <span>
-                    RAM {data.health.heapUsedMb}/{data.health.rssMb} MB
-                  </span>
-                </div>
-              </div>
+              ))}
+            </section>
 
-              {/* PDF Engine & DOMMatrix Polyfill Status */}
-              <div className="animate-fade-in-up stagger-2 interactive-card rounded-2xl bg-white border border-[#9db4c0]/50 border-t-4 border-t-[#c2dfe3] p-5 shadow-xs space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#5c6b73]">
-                    {isHe ? "מנוע PDF ו-DOMMatrix" : "PDF Engine & DOMMatrix"}
-                  </span>
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#c2dfe3] text-[#253237]">
-                    <Server className="h-4 w-4" />
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#253237] px-2.5 py-1 text-xs font-bold text-[#e0fbfc]">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-[#e0fbfc]" />
-                    {data.health.domMatrixPolyfillActive
-                      ? "DOMMatrix Polyfill Active"
-                      : "DOMMatrix Missing"}
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#5c6b73] flex items-center justify-between">
-                  <span>
-                    ImageData: {data.health.imageDataPolyfillActive ? "OK" : "—"}
-                  </span>
-                  <span>
-                    Path2D: {data.health.path2DPolyfillActive ? "OK" : "—"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Deep Cost & Cache Savings Economics */}
-              <div className="animate-fade-in-up stagger-3 interactive-card rounded-2xl bg-white border border-[#9db4c0]/50 border-t-4 border-t-[#5c6b73] p-5 shadow-xs space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#5c6b73]">
-                    {isHe ? "עלות בפועל מול חיסכון מטמון" : "Cost & Cache Savings"}
-                  </span>
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#9db4c0]/45 text-[#253237]">
-                    <DollarSign className="h-4 w-4" />
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold font-mono text-[#253237]">
-                    {formatUsd(data.economics.actualCostUsd)}
-                  </span>
-                  <span className="rounded-md bg-[#e0fbfc] px-2 py-0.5 font-mono text-[11px] font-bold text-[#253237] border border-[#9db4c0]/50">
-                    {isHe ? "נחסך:" : "Saved:"}{" "}
-                    {formatUsd(data.economics.savedByCacheUsd)} (
-                    {data.economics.cacheHitRatePercent}%)
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#5c6b73] flex items-center justify-between">
-                  <span>
-                    {formatTokensCompact(data.economics.totalTokens)} total tok
-                  </span>
-                  <span>
-                    {formatTokensCompact(data.economics.totalCachedTokens)} cached
-                  </span>
-                </div>
-              </div>
-
-              {/* Latency Percentiles & Error Count */}
-              <div className="animate-fade-in-up stagger-4 interactive-card rounded-2xl bg-white border border-[#9db4c0]/50 border-t-4 border-t-[#253237] p-5 shadow-xs space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#5c6b73]">
-                    {isHe ? "אחוזוני השהיה ושגיאות" : "Latency Percentiles & Errors"}
-                  </span>
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#253237] text-[#e0fbfc]">
-                    <Activity className="h-4 w-4" />
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between font-mono">
-                  <span className="text-2xl font-bold text-[#253237]">
-                    P50: {data.economics.p50LatencyMs}ms
-                  </span>
-                  <span className="text-xs font-semibold text-[#5c6b73]">
-                    P95: {data.economics.p95LatencyMs}ms
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#5c6b73] flex items-center justify-between">
-                  <span>
-                    {isHe ? "שגיאות פתוחות:" : "Unresolved Errors:"}{" "}
-                    <strong className="text-[#253237]">
-                      {data.anomalies.unresolvedErrorsCount}
-                    </strong>
-                  </span>
-                  <span>
-                    {isHe ? "נכשלו:" : "Failed Calls:"}{" "}
-                    <strong className="text-[#253237]">
-                      {data.anomalies.failedQueryLogsCount}
-                    </strong>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Self-Healing & Automated Repair Console */}
-            <div className="animate-fade-in-up stagger-2 rounded-2xl bg-white border border-[#9db4c0]/55 shadow-xs overflow-hidden">
-              <div className="px-5 py-4 bg-[#253237] text-[#e0fbfc] flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e0fbfc] text-[#253237]">
-                    <Wrench className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      {isHe
-                        ? "כלי תיקון עצמי ותחזוקה מהירה (Self-Healing Repair Actions)"
-                        : "Self-Healing & Quick Repair Actions"}
-                    </h3>
-                    <p className="text-xs text-[#c2dfe3]">
-                      {isHe
-                        ? "בדיקה ותיקון אוטומטי של מנוע ה-PDF (DOMMatrix), ספירת טוקנים, ניקוי קבצים פגומים ואיפוס שגיאות"
-                        : "Diagnose and repair PDF DOMMatrix runtime, recalculate token quotas, purge corrupted uploads, and resolve error states"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                {/* Action 1: Verify & Self-Test PDF DOMMatrix */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
-                        {isHe
-                          ? "בדיקה ותיקון מנוע PDF + DOMMatrix"
-                          : "Verify & Self-Test PDF / DOMMatrix Engine"}
-                      </p>
-                      <span className="rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[10px] font-bold text-[#253237] border border-[#9db4c0]">
-                        {data.health.domMatrixPolyfillActive ? "READY" : "FIX"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מוודא ש-DOMMatrix, ImageData ו-Path2D מותקנים בזיכרון השרת ומריץ פענוח PDF חי לבדיקת תקינות מלאה."
-                        : "Ensures DOMMatrix, ImageData & Path2D polyfills are active in Node globalThis and parses an in-memory test PDF."}
-                    </p>
-                  </div>
-                  <button
-                    id="repair-pdf-polyfill-btn"
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() => void runRepair("VERIFY_PDF_POLYFILL")}
-                    className="btn-jet w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {pendingAction === "VERIFY_PDF_POLYFILL" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {isHe
-                        ? "הרץ בדיקת PDF ו-DOMMatrix"
-                        : "Run PDF & DOMMatrix Self-Test"}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Action 2: Recalculate Document Tokens & Fix Quota Overflows */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
-                        {isHe
-                          ? "סנכרון מחדש של טוקנים ותיקון חריגות 150k"
-                          : "Recalculate Document Tokens & Fix Overflows"}
-                      </p>
-                      <span className="rounded-full bg-[#c2dfe3] px-2 py-0.5 font-mono text-[10px] font-bold text-[#253237]">
-                        {data.anomalies.usersOverTokenCap} overflow
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מחשב מחדש את כמות הטוקנים לכל המסמכים ומבטל סימון אוטומטית אם משתמש חרג מתקרת 150,000 הטוקנים."
-                        : "Recomputes token counts across all uploaded documents and auto-unchecks overflow files exceeding the 150k token ceiling."}
-                    </p>
-                  </div>
-                  <button
-                    id="repair-recalc-tokens-btn"
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() => void runRepair("RECALCULATE_DOCUMENT_TOKENS")}
-                    className="btn-jet w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {pendingAction === "RECALCULATE_DOCUMENT_TOKENS" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Cpu className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {isHe
-                        ? "חשב טוקנים ותקן חריגות"
-                        : "Recalculate & Repair Quotas"}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Action 3: Purge Corrupted / Empty Documents */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
-                        {isHe
-                          ? "ניקוי קבצים פגומים או ריקים"
-                          : "Purge Corrupted / Empty Documents"}
-                      </p>
-                      <span className="rounded-full bg-[#c2dfe3] px-2 py-0.5 font-mono text-[10px] font-bold text-[#253237]">
-                        {data.anomalies.corruptedOrEmptyDocs} found
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מסיר מסמכים שנכשלו בחילוץ טקסט (0 טוקנים או 0 בתים) כדי לשחרר את מכסת 10 הקבצים של המשתמש."
-                        : "Removes any zero-byte or zero-token documents that failed extraction so user file slots are freed cleanly."}
-                    </p>
-                  </div>
-                  <button
-                    id="repair-purge-docs-btn"
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() => void runRepair("PURGE_CORRUPTED_DOCUMENTS")}
-                    className="btn-jet w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {pendingAction === "PURGE_CORRUPTED_DOCUMENTS" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <FileWarning className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {isHe ? "נקה מסמכים פגומים" : "Purge Corrupted Documents"}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Action 4: Resolve Error Logs & Clear Failed Usage Entries */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
-                        {isHe
-                          ? "סימון שגיאות כטופלו וניקוי קריאות שנכשלו"
-                          : "Resolve Open Error Logs & Failed Calls"}
-                      </p>
-                      <span className="rounded-full bg-[#253237] px-2 py-0.5 font-mono text-[10px] font-bold text-[#e0fbfc]">
-                        {data.anomalies.unresolvedErrorsCount +
-                          data.anomalies.failedQueryLogsCount}{" "}
-                        open
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מסמן את כל שגיאות המערכת הפתוחות כטופלו ומנקה רשומות ERROR ישנות מיומן השימוש."
-                        : "Marks all open SystemLog errors as resolved and removes failed (ERROR) entries from UsageLog metrics."}
-                    </p>
-                  </div>
-                  <button
-                    id="repair-resolve-errors-btn"
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() => void runRepair("RESOLVE_ALL_ERRORS")}
-                    className="btn-jet w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {pendingAction === "RESOLVE_ALL_ERRORS" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {isHe ? "אפס שגיאות פתוחות" : "Resolve All Open Errors"}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Action 5: Verify & Restore Admin + Developer Accounts */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold text-[#253237]">
-                      {isHe
-                        ? "שחזור הרשאות חשבונות מערכת (Admin & Developer)"
-                        : "Restore Default Admin & Developer Credentials"}
-                    </p>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מוודא שחשבונות admin/admin ו-Developer/Developer פעילים, לא חסומים ומוגדרים עם ההרשאות הנכונות."
-                        : 'Ensures "admin" / "admin" and "Developer" / "Developer" exist, are unblocked, and have their default passwords.'}
-                    </p>
-                  </div>
-                  <button
-                    id="repair-reset-accounts-btn"
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() =>
-                      void runRepair("RESET_ADMIN_AND_DEV_ACCOUNTS")
-                    }
-                    className="btn-jet w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {pendingAction === "RESET_ADMIN_AND_DEV_ACCOUNTS" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Wrench className="h-3.5 w-3.5" />
-                    )}
-                    <span>
-                      {isHe ? "שחזר חשבונות מערכת" : "Verify System Accounts"}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Action 6: Clear Resolved Logs / Unblock All Users */}
-                <div className="rounded-xl bg-[#f2fafb] p-4 border border-[#9db4c0]/55 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
-                        {isHe
-                          ? "ניקוי לוגים שטופלו / שחרור משתמשים חסומים"
-                          : "Prune Resolved Logs & Unblock Users"}
-                      </p>
-                      <span className="rounded-full bg-[#c2dfe3] px-2 py-0.5 font-mono text-[10px] font-bold text-[#253237]">
-                        {data.anomalies.blockedUsersCount} blocked
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#5c6b73] leading-relaxed">
-                      {isHe
-                        ? "מוחק לוגים שכבר סומנו כטופלו או משחרר את כל המשתמשים החסומים במערכת בלחיצה אחת."
-                        : "Prunes resolved SystemLog rows from the database or unblocks all currently blocked user accounts."}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={pendingAction !== null}
-                      onClick={() => void runRepair("CLEAR_RESOLVED_LOGS")}
-                      className="interactive-chip inline-flex items-center justify-center gap-1 rounded-xl bg-white hover:bg-[#e0fbfc] px-2.5 py-2 text-xs font-semibold text-[#253237] border border-[#9db4c0] cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>{isHe ? "נקה לוגים" : "Prune Logs"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pendingAction !== null}
-                      onClick={() => void runRepair("UNBLOCK_ALL_USERS")}
-                      className="btn-jet inline-flex items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold cursor-pointer"
-                    >
-                      <span>{isHe ? "שחרר חסימות" : "Unblock All"}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Live System & Error Logs Console */}
-            <div className="animate-fade-in-up stagger-3 rounded-2xl bg-white border border-[#9db4c0]/55 shadow-xs overflow-hidden">
-              <div className="px-5 py-4 bg-[#c2dfe3]/60 border-b border-[#9db4c0]/45 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#253237] text-[#e0fbfc]">
-                    <Terminal className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[#253237]">
-                      {isHe
-                        ? "יומן לוגים ושגיאות מערכת (System & Stack-Trace Logs)"
-                        : "System & Error Logs (with Stack Traces & Metadata)"}
-                    </h3>
-                    <p className="text-xs text-[#5c6b73]">
-                      {isHe
-                        ? "מתעד כל שגיאת פענוח קובץ (PDF/DOCX), חריגת API, זמני ריצה ופעולות תיקון"
-                        : "Captures PDF/DOCX parser exceptions, OpenAI stream errors, upload events, and self-healing actions"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Filter Tabs */}
-                <div className="inline-flex rounded-xl bg-white p-1 border border-[#9db4c0]/55 text-[11px] font-semibold">
-                  {(
-                    ["ALL", "UNRESOLVED", "ERROR", "WARN", "INFO"] as const
-                  ).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setLogFilter(tab)}
-                      className={`rounded-lg px-2.5 py-1 transition-all cursor-pointer ${
-                        logFilter === tab
-                          ? "bg-[#253237] text-[#e0fbfc]"
-                          : "text-[#5c6b73] hover:text-[#253237]"
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
+            {/* Level 1: logs */}
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
+                  {isHe ? "לוגים ושגיאות" : "Logs & errors"}
+                </h2>
+                <div className="flex items-center gap-1 text-xs">
+                  {(["ALL", "UNRESOLVED", "ERROR", "WARN", "INFO"] as const).map(
+                    (tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setLogFilter(tab)}
+                        className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
+                          logFilter === tab
+                            ? "bg-[#253237]/8 text-[#253237] font-semibold"
+                            : "text-[#5c6b73] hover:text-[#253237]"
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
               {filteredLogs.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#5c6b73]">
+                <p className="py-10 text-sm text-[#5c6b73] border-t border-[#253237]/10">
                   {isHe
-                    ? "אין רשומות לוג התואמות לסינון הנוכחי."
-                    : "No system log entries match the selected filter."}
-                </div>
+                    ? "אין רשומות התואמות לסינון."
+                    : "No log entries match this filter."}
+                </p>
               ) : (
-                <div className="divide-y divide-[#9db4c0]/30 max-h-[460px] overflow-y-auto">
+                <div className="divide-y divide-[#253237]/8 border-t border-[#253237]/10 max-h-[480px] overflow-y-auto">
                   {filteredLogs.map((log) => {
                     const isErr =
                       log.level === "ERROR" || log.level === "CRITICAL";
-                    const isWarn = log.level === "WARN";
                     const isExpanded = expandedLogId === log.id;
-
                     return (
                       <div
                         key={log.id}
-                        className={`p-4 transition-colors ${
-                          isErr && !log.resolved
-                            ? "bg-[#e0fbfc]/40"
-                            : "hover:bg-[#f2fafb]"
-                        }`}
+                        className={`py-3 ${log.resolved ? "opacity-55" : ""}`}
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <div
+                            dir="ltr"
+                            className="flex items-baseline gap-3 font-mono text-[11px] text-[#5c6b73]"
+                          >
                             <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[10px] font-bold ${
+                              className={
                                 isErr
-                                  ? "bg-[#253237] text-[#e0fbfc]"
-                                  : isWarn
-                                    ? "bg-[#c2dfe3] text-[#253237]"
-                                    : "bg-[#e0fbfc] text-[#253237] border border-[#9db4c0]"
-                              }`}
+                                  ? "font-bold text-[#253237]"
+                                  : "font-medium"
+                              }
                             >
-                              {isErr && <AlertTriangle className="h-3 w-3" />}
                               {log.level}
                             </span>
-                            <span className="rounded bg-[#f2fafb] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#253237] border border-[#9db4c0]/45">
-                              {log.source}
-                            </span>
-                            {log.username && (
-                              <span className="font-mono text-[11px] text-[#5c6b73]">
-                                @{log.username}
-                              </span>
-                            )}
-                            <span className="font-mono text-[11px] text-[#5c6b73]">
+                            <span>{log.source}</span>
+                            {log.username && <span>@{log.username}</span>}
+                            <span className="text-[#9db4c0]">
                               {new Date(log.createdAt).toLocaleString()}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3 text-xs">
                             {(Boolean(log.stack) || Boolean(log.meta)) && (
                               <button
                                 type="button"
                                 onClick={() =>
                                   setExpandedLogId(isExpanded ? null : log.id)
                                 }
-                                className="text-[11px] font-semibold text-[#5c6b73] hover:text-[#253237] underline cursor-pointer"
+                                className="text-[#5c6b73] hover:text-[#253237] underline underline-offset-2 cursor-pointer"
                               >
                                 {isExpanded
                                   ? isHe
-                                    ? "הסתר פרטים"
-                                    : "Hide Trace"
+                                    ? "הסתר"
+                                    : "Hide"
                                   : isHe
-                                    ? "הצג Stack / Meta"
-                                    : "View Stack / Meta"}
+                                    ? "פרטים"
+                                    : "Details"}
                               </button>
                             )}
                             {!log.resolved ? (
@@ -818,31 +504,29 @@ export function DeveloperDashboardClient({
                                 type="button"
                                 disabled={pendingAction === log.id}
                                 onClick={() => void resolveSingleLog(log.id)}
-                                className="rounded-lg bg-[#253237] hover:bg-[#5c6b73] px-2.5 py-1 text-[10px] font-semibold text-[#e0fbfc] cursor-pointer"
+                                className="font-medium text-[#253237] hover:underline underline-offset-2 cursor-pointer"
                               >
                                 {isHe ? "סמן כטופל" : "Resolve"}
                               </button>
                             ) : (
-                              <span className="rounded-full bg-[#e0fbfc] px-2 py-0.5 text-[10px] font-semibold text-[#5c6b73] border border-[#9db4c0]/50">
+                              <span className="text-[#9db4c0]">
                                 {isHe ? "טופל" : "Resolved"}
                               </span>
                             )}
                           </div>
                         </div>
-
                         <p
                           dir="auto"
-                          className="mt-1.5 text-xs font-mono text-[#253237] break-words"
+                          className="mt-1 text-sm text-[#253237] break-words"
                         >
                           {log.message}
                         </p>
-
                         {isExpanded && (
-                          <div className="mt-2.5 space-y-2">
+                          <div className="mt-2 space-y-2">
                             {Boolean(log.meta) && (
                               <pre
                                 dir="ltr"
-                                className="rounded-xl bg-[#f2fafb] p-3 text-[11px] font-mono text-[#253237] border border-[#9db4c0]/50 overflow-x-auto"
+                                className="rounded bg-[#f8fafb] p-3 text-[11px] font-mono text-[#253237] overflow-x-auto"
                               >
                                 {JSON.stringify(log.meta, null, 2)}
                               </pre>
@@ -850,7 +534,7 @@ export function DeveloperDashboardClient({
                             {log.stack && (
                               <pre
                                 dir="ltr"
-                                className="rounded-xl bg-[#253237] p-3 text-[11px] font-mono text-[#e0fbfc] overflow-x-auto whitespace-pre-wrap"
+                                className="rounded bg-[#253237] p-3 text-[11px] font-mono text-white/90 overflow-x-auto whitespace-pre-wrap"
                               >
                                 {log.stack}
                               </pre>
@@ -862,118 +546,174 @@ export function DeveloperDashboardClient({
                   })}
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* 4. Per-Model Cost, Token & Query Status Breakdown */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-              <div className="xl:col-span-7 rounded-2xl bg-white border border-[#9db4c0]/55 p-5 shadow-xs space-y-3">
-                <h3 className="text-sm font-semibold text-[#253237]">
+            {/* Level 2: repair tools as a plain list */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
+                  {isHe ? "כלי תיקון" : "Repair tools"}
+                </h2>
+                <p className="text-sm text-[#5c6b73]">
                   {isHe
-                    ? "פירוט שימוש, טוקנים, שגיאות ועלויות לפי מודל AI"
-                    : "Per-Model AI Usage, Token Economics & Error Rate"}
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-start border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-[#f2fafb] text-[11px] font-semibold uppercase text-[#5c6b73] border-b border-[#9db4c0]/35">
-                        <th className="py-2.5 px-3 text-start">Model</th>
-                        <th className="py-2.5 px-3 text-end">Calls</th>
-                        <th className="py-2.5 px-3 text-end">Errors</th>
-                        <th className="py-2.5 px-3 text-end">Input / Cached</th>
-                        <th className="py-2.5 px-3 text-end">Output</th>
-                        <th className="py-2.5 px-3 text-end">Avg Latency</th>
-                        <th className="py-2.5 px-3 text-end">Cost (USD)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#9db4c0]/25 font-mono">
-                      {data.models.map((m) => (
-                        <tr key={m.model} className="hover:bg-[#f2fafb]">
-                          <td className="py-2.5 px-3 font-semibold text-[#253237]">
-                            {m.model}
-                          </td>
-                          <td className="py-2.5 px-3 text-end">{m.calls}</td>
-                          <td className="py-2.5 px-3 text-end">
-                            {m.errors > 0 ? (
-                              <span className="rounded bg-[#253237] px-1.5 py-0.5 text-[10px] font-bold text-[#e0fbfc]">
-                                {m.errors}
-                              </span>
-                            ) : (
-                              "0"
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-end">
-                            {m.promptTokens.toLocaleString()} (
-                            {m.cachedTokens.toLocaleString()})
-                          </td>
-                          <td className="py-2.5 px-3 text-end">
-                            {m.completionTokens.toLocaleString()}
-                          </td>
-                          <td className="py-2.5 px-3 text-end">
-                            {m.avgLatencyMs}ms
-                          </td>
-                          <td className="py-2.5 px-3 text-end font-bold text-[#253237]">
-                            {formatUsd(m.costUsd)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    ? "פעולות תחזוקה בלחיצה אחת."
+                    : "One-click maintenance actions."}
+                </p>
+              </div>
+              <div className="divide-y divide-[#253237]/8 border-t border-[#253237]/10">
+                {repairs.map((r) => (
+                  <div
+                    key={r.id}
+                    className="py-4 flex flex-wrap items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1 basis-72">
+                      <p className="text-sm font-medium text-[#253237]">
+                        {r.title}
+                        {r.stat && (
+                          <span
+                            dir="ltr"
+                            className="ms-2 font-mono text-[11px] font-normal text-[#5c6b73]"
+                          >
+                            {r.stat}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[#5c6b73]">{r.desc}</p>
+                    </div>
+                    <button
+                      id={r.id}
+                      type="button"
+                      disabled={pendingAction !== null}
+                      onClick={() => void runRepair(r.action)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#253237]/20 px-3.5 py-1.5 text-xs font-medium text-[#253237] hover:border-[#253237] hover:bg-[#f8fafb] disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      {pendingAction === r.action && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
+                      {r.cta}
+                    </button>
+                  </div>
+                ))}
+                <div className="py-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[#253237]">
+                      {isHe ? "ניקוי לוגים שטופלו" : "Prune resolved logs"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#5c6b73]">
+                      {isHe
+                        ? "מוחק מהמסד לוגים שסומנו כטופלו."
+                        : "Deletes log rows already marked resolved."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pendingAction !== null}
+                    onClick={() => void runRepair("CLEAR_RESOLVED_LOGS")}
+                    className="rounded-lg border border-[#253237]/20 px-3.5 py-1.5 text-xs font-medium text-[#253237] hover:border-[#253237] hover:bg-[#f8fafb] disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    {isHe ? "נקה" : "Prune"}
+                  </button>
                 </div>
               </div>
+            </section>
 
-              <div className="xl:col-span-5 rounded-2xl bg-white border border-[#9db4c0]/55 p-5 shadow-xs space-y-4">
-                <h3 className="text-sm font-semibold text-[#253237]">
-                  {isHe
-                    ? "התפלגות סטטוס שאילתות ופורמטי מסמכים"
-                    : "Query Status Distribution & Storage Formats"}
-                </h3>
+            {/* Level 2: per-model table */}
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold tracking-tight text-[#253237]">
+                {isHe ? "שימוש לפי מודל" : "Usage by model"}
+              </h2>
+              <div className="overflow-x-auto border-t border-[#253237]/10" dir="ltr">
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-[#253237]/10">
+                      <th className={th}>Model</th>
+                      <th className={`${th} text-end`}>Calls</th>
+                      <th className={`${th} text-end`}>Errors</th>
+                      <th className={`${th} text-end`}>Input (cached)</th>
+                      <th className={`${th} text-end`}>Output</th>
+                      <th className={`${th} text-end`}>Latency</th>
+                      <th className={`${th} text-end pe-0`}>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#253237]/8">
+                    {data.models.map((m) => (
+                      <tr key={m.model}>
+                        <td className="py-2.5 pe-4 font-medium text-[#253237]">
+                          {m.model}
+                        </td>
+                        <td className="py-2.5 pe-4 text-end">{m.calls}</td>
+                        <td
+                          className={`py-2.5 pe-4 text-end ${m.errors > 0 ? "font-bold text-[#253237]" : "text-[#9db4c0]"}`}
+                        >
+                          {m.errors}
+                        </td>
+                        <td className="py-2.5 pe-4 text-end">
+                          {m.promptTokens.toLocaleString()} (
+                          {m.cachedTokens.toLocaleString()})
+                        </td>
+                        <td className="py-2.5 pe-4 text-end">
+                          {m.completionTokens.toLocaleString()}
+                        </td>
+                        <td className="py-2.5 pe-4 text-end">
+                          {m.avgLatencyMs}ms
+                        </td>
+                        <td className="py-2.5 text-end font-semibold text-[#253237]">
+                          {formatUsd(m.costUsd)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 font-mono text-xs">
-                  {Object.entries(data.economics.statusCounts).map(
-                    ([status, count]) => (
+            {/* Level 3: distributions as quiet definition lists */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-3">
+                <h2 className="text-sm font-semibold text-[#253237]">
+                  {isHe ? "סטטוס שאילתות" : "Query status"}
+                </h2>
+                <dl
+                  dir="ltr"
+                  className="divide-y divide-[#253237]/8 border-t border-[#253237]/10 text-xs font-mono"
+                >
+                  {Object.entries(eco.statusCounts).map(([status, count]) => (
+                    <div key={status} className="flex justify-between py-2">
+                      <dt className="text-[#5c6b73]">{status}</dt>
+                      <dd className="font-semibold text-[#253237]">{count}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-sm font-semibold text-[#253237]">
+                  {isHe ? "אחסון" : "Storage"}{" "}
+                  <span className="font-mono font-normal text-[#5c6b73]">
+                    {formatBytes(data.storage.totalStorageBytes)}
+                  </span>
+                </h2>
+                <dl
+                  dir="ltr"
+                  className="divide-y divide-[#253237]/8 border-t border-[#253237]/10 text-xs font-mono"
+                >
+                  {Object.entries(data.storage.formatBreakdown).map(
+                    ([mime, info]) => (
                       <div
-                        key={status}
-                        className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/45"
+                        key={mime}
+                        className="flex justify-between gap-4 py-2"
                       >
-                        <p className="text-[10px] font-bold text-[#5c6b73] truncate">
-                          {status}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-[#253237]">
-                          {count}
-                        </p>
+                        <dt className="truncate text-[#253237]">{mime}</dt>
+                        <dd className="shrink-0 text-[#5c6b73]">
+                          {info.count} files · {formatBytes(info.bytes)} ·{" "}
+                          {formatTokensCompact(info.tokens)} tok
+                        </dd>
                       </div>
                     )
                   )}
-                </div>
-
-                <div className="pt-2 border-t border-[#9db4c0]/35 space-y-2">
-                  <p className="text-xs font-bold text-[#5c6b73]">
-                    {isHe ? "אחסון לפי סוג קובץ:" : "Indexed Storage by MIME Type:"}{" "}
-                    ({formatBytes(data.storage.totalStorageBytes)})
-                  </p>
-                  <div className="space-y-1.5 text-xs font-mono">
-                    {Object.entries(data.storage.formatBreakdown).map(
-                      ([mime, info]) => (
-                        <div
-                          key={mime}
-                          className="flex items-center justify-between rounded-lg bg-[#e0fbfc]/45 px-3 py-1.5 border border-[#9db4c0]/40"
-                        >
-                          <span className="truncate max-w-[200px] text-[#253237]">
-                            {mime}
-                          </span>
-                          <span className="text-[#5c6b73]">
-                            {info.count} files • {formatBytes(info.bytes)} •{" "}
-                            {formatTokensCompact(info.tokens)} tok
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
+                </dl>
               </div>
-            </div>
+            </section>
 
-            {/* 5. 4-Layer Security Pipeline Simulator */}
             <PipelineInspectorPanel />
           </>
         )}
