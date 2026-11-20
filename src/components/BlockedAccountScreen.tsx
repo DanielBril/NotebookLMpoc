@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Ban, LogOut } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -11,6 +12,7 @@ interface BlockedAccountScreenProps {
 }
 
 export function BlockedAccountScreen({ reason }: BlockedAccountScreenProps) {
+  const router = useRouter();
   const { t } = useLanguage();
 
   return (
@@ -49,7 +51,12 @@ export function BlockedAccountScreen({ reason }: BlockedAccountScreenProps) {
           <button
             id="blocked-signout-btn"
             type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() =>
+              void signOut({ redirect: false }).then(() => {
+                router.push("/login");
+                router.refresh();
+              })
+            }
             className="btn-jet w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold cursor-pointer"
           >
             <LogOut className="h-4 w-4" />

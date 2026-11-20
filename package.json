@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "DEMO_MOCK_MODE=true NEXT_PUBLIC_DEMO_MOCK_MODE=true AUTH_SECRET=contextlm-demo-preview-secret-2026 NEXTAUTH_SECRET=contextlm-demo-preview-secret-2026 AUTH_TRUST_HOST=true next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./setup-windows.ps1"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -2,7 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Loader2, Lock, User } from "lucide-react";
 import { AuthShowcasePane } from "@/components/AuthShowcasePane";
@@ -11,9 +11,8 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/lib/i18n";
 
 function LoginFormContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorKey, setErrorKey] = useState<
@@ -43,12 +42,12 @@ function LoginFormContent() {
               ? t.auth.errGoogleNotConfigured
               : null;
 
-  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setErrorKey(null);
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MOCK_MODE === "true";
 
-    const trimmedUser = username.trim();
-    if (!trimmedUser || !password) {
+  async function performLogin(targetUsername: string, targetPassword: string) {
+    setErrorKey(null);
+    const trimmedUser = targetUsername.trim();
+    if (!trimmedUser || !targetPassword) {
       setErrorKey("missing");
       return;
     }
@@ -57,7 +56,7 @@ function LoginFormContent() {
     try {
       const result = await signIn("credentials", {
         username: trimmedUser,
-        password,
+        password: targetPassword,
         redirect: false,
       });
 
@@ -71,19 +70,26 @@ function LoginFormContent() {
         return;
       }
 
-      const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
+      const sessionRes = await fetch("/api/auth/session", {
+        cache: "no-store",
+        credentials: "include",
+      });
       const sessionData = (await sessionRes.json()) as {
         user?: { role?: string };
       };
       const destination =
         sessionData?.user?.role === "ADMIN" ? "/admin" : "/workspace";
 
-      router.push(destination);
-      router.refresh();
+      window.location.assign(destination);
     } catch {
       setErrorKey("network");
       setIsSubmitting(false);
     }
+  }
+
+  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await performLogin(username, password);
   }
 
   async function handleGoogleSignIn() {
@@ -238,6 +244,45 @@ function LoginFormContent() {
                 )}
               </button>
             </form>
+
+            {isDemoMode && (
+              <div className="mt-5 rounded-xl bg-[#e0fbfc]/60 border border-[#9db4c0]/55 p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-[#5c6b73]">
+                  {lang === "he"
+                    ? "כניסה מהירה לתצוגת הדמו (מסד נתונים ו-AI מדומים):"
+                    : "Quick Demo Sign-In (Mock DB & AI):"}
+                </p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    id="demo-login-admin"
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void performLogin("admin", "admin")}
+                    className="interactive-chip rounded-lg bg-[#253237] hover:bg-[#5c6b73] px-2 py-1.5 text-[11px] font-semibold text-[#e0fbfc] disabled:opacity-50 cursor-pointer"
+                  >
+                    {lang === "he" ? "מנהל (Admin)" : "Admin"}
+                  </button>
+                  <button
+                    id="demo-login-user"
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void performLogin("maya_cohen", "demo1234")}
+                    className="interactive-chip rounded-lg bg-[#c2dfe3] hover:bg-[#9db4c0] px-2 py-1.5 text-[11px] font-semibold text-[#253237] disabled:opacity-50 cursor-pointer"
+                  >
+                    {lang === "he" ? "משתמשת (מאיה)" : "User (Maya)"}
+                  </button>
+                  <button
+                    id="demo-login-blocked"
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void performLogin("noam_barak", "demo1234")}
+                    className="interactive-chip rounded-lg bg-white hover:bg-[#c2dfe3]/40 px-2 py-1.5 text-[11px] font-semibold text-[#5c6b73] border border-[#9db4c0]/60 disabled:opacity-50 cursor-pointer"
+                  >
+                    {lang === "he" ? "משתמש חסום" : "Blocked User"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 pt-5 border-t border-[#9db4c0]/30 flex items-center justify-between text-xs">
               <span className="text-[#5c6b73]">{t.auth.newToContextLm}</span>

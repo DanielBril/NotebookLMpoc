@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   Activity,
@@ -37,6 +38,7 @@ export function Navbar({
   onToggleSidebar,
   sidebarOpen,
 }: NavbarProps) {
+  const router = useRouter();
   const { t } = useLanguage();
   const tokenRatio = Math.min(1, activeTokens / MAX_ACTIVE_CONTEXT_TOKENS);
   const isNearTokenLimit = tokenRatio >= 0.8;
@@ -162,7 +164,12 @@ export function Navbar({
           <button
             id="logout-btn"
             type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() =>
+              void signOut({ redirect: false }).then(() => {
+                router.push("/login");
+                router.refresh();
+              })
+            }
             title={t.navbar.signOutTitle}
             className="interactive-chip inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 px-2.5 py-1.5 text-xs font-medium text-[#e0fbfc] cursor-pointer"
           >
