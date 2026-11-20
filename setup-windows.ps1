@@ -1,16 +1,4 @@
 #Requires -Version 5.1
-<#
-.SYNOPSIS
-  Automated Windows Local Setup for ContextLM (NotebookLMpoc)
-.DESCRIPTION
-  1. Checks for Administrator privileges (auto-elevates if needed so it can configure PostgreSQL).
-  2. Auto-detects the active PostgreSQL installation on Windows (PostgreSQL 18 / 17 / 16 / 15).
-  3. Resets the local 'postgres' user password to 'postgres', creates the 'contextlm' database,
-     and restores scram-sha-256 authentication in pg_hba.conf.
-  4. Creates or updates the local .env file with working DATABASE_URL and AUTH_SECRET.
-  5. Runs npm install, npx prisma db push, and npm run db:seed.
-#>
-
 param(
   [switch]$MockMode,
   [switch]$NoStart
@@ -19,136 +7,174 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
-Write-Host "`n============================================================" -ForegroundColor Cyan
-Write-Host "  ContextLM — Automated Windows Setup" -ForegroundColor Cyan
-Write-Host "============================================================`n" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "  ContextLM - Automated Windows Setup" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
 
-# Check Administrator privileges (needed to edit pg_hba.conf & restart PostgreSQL service)
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-$isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+# Check Administrator privileges (needed to edit pg_hba.conf and restart PostgreSQL service)
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+$adminRole = [Security.Principal.WindowsBuiltInRole]::Administrator
+$isAdmin = $principal.IsInRole($adminRole)
 
-if (-not $isAdmin -and -not $MockMode) {
-  Write-Host "[!] Elevating PowerShell to Administrator to configure PostgreSQL..." -ForegroundColor Yellow
-  $argList = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`""
-  if ($NoStart) { $argList += " -NoStart" }
-  Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
+if ((-not $isAdmin) -and (-not $MockMode)) {
+  Write-Host "[!] Opening Administrator PowerShell to configure PostgreSQL..." -ForegroundColor Yellow
+  $scriptPath = $PSCommandPath
+  $argString = '-NoExit -ExecutionPolicy Bypass -File "' + $scriptPath + '"'
+  if ($NoStart) {
+    $argString = $argString + ' -NoStart'
+  }
+  Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $argString
   exit
 }
 
-# 1. Configure PostgreSQL unless -MockMode was requested
 $pgConfigured = $false
+
 if (-not $MockMode) {
   Write-Host "[1/4] Detecting local PostgreSQL Windows service..." -ForegroundColor Cyan
 
-  # Restore any leftover 'trust' rules in all installed versions first
-  Get-ChildItem "C:\Program Files\PostgreSQL\*\data\pg_hba.conf" -ErrorAction SilentlyContinue | ForEach-Object {
-    $hbaPath = $_.FullName
-    $content = Get-Content $hbaPath
-    if ($content -match '^(host\s+all\s+all\s+(127\.0\.0\.1/32|::1/128)\s+)trust') {
-      ($content -replace '^(host\s+all\s+all\s+(127\.0\.0\.1/32|::1/128)\s+)trust', '${1}scram-sha-256') | Set-Content -Encoding ascii $hbaPath
+  # Restore any leftover trust rules across all installed PostgreSQL versions first
+  $allHba = Get-ChildItem -Path "C:\Program Files\PostgreSQL\*\data\pg_hba.conf" -ErrorAction SilentlyContinue
+  foreach ($hbaItem in $allHba) {
+    $lines = Get-Content -Path $hbaItem.FullName
+    $updatedLines = foreach ($line in $lines) {
+      if (($line -match '^host\s+all\s+all') -and ($line -match '\s+trust\s*$')) {
+        $line -replace '\s+trust\s*$', ' scram-sha-256'
+      } else {
+        $line
+      }
     }
+    Set-Content -Path $hbaItem.FullName -Value $updatedLines -Encoding ascii
   }
 
-  $pgServices = Get-CimInstance Win32_Service | Where-Object { $_.Name -like "*postgres*" }
+  $pgServices = Get-CimInstance -ClassName Win32_Service | Where-Object { $_.Name -like "*postgres*" }
   $activeService = $pgServices | Where-Object { $_.State -eq "Running" } | Select-Object -First 1
   if (-not $activeService) {
-    $activeService = $pgServices | Sort-Object Name -Descending | Select-Object -First 1
+    $activeService = $pgServices | Sort-Object -Property Name -Descending | Select-Object -First 1
   }
 
   if ($activeService) {
-    Write-Host "      Found service: $($activeService.Name) ($($activeService.State))" -ForegroundColor Green
+    Write-Host ("      Found service: " + $activeService.Name + " (" + $activeService.State + ")") -ForegroundColor Green
 
-    # Extract installation directory from service PathName or fallback to highest version in Program Files
-    $pgDir = $null
-    if ($activeService.PathName -match '"([^"]+\\PostgreSQL\\[^\\]+)\\bin\\') {
-      $pgDir = $Matches[1]
+    # Locate matching PostgreSQL directory in Program Files
+    $pgDirs = Get-ChildItem -Path "C:\Program Files\PostgreSQL\*" -Directory -ErrorAction SilentlyContinue | Sort-Object -Property Name -Descending
+    $selectedDir = $null
+    foreach ($dir in $pgDirs) {
+      if ($activeService.Name -like ("*" + $dir.Name + "*")) {
+        $selectedDir = $dir.FullName
+        break
+      }
     }
-    if (-not $pgDir -or -not (Test-Path $pgDir)) {
-      $pgDir = (Get-ChildItem "C:\Program Files\PostgreSQL\*" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+    if ((-not $selectedDir) -and ($pgDirs.Count -gt 0)) {
+      $selectedDir = $pgDirs[0].FullName
     }
 
-    $hbaFile = Join-Path $pgDir "data\pg_hba.conf"
-    $psqlExe = Join-Path $pgDir "bin\psql.exe"
+    if ($selectedDir) {
+      $hbaFile = Join-Path -Path $selectedDir -ChildPath "data\pg_hba.conf"
+      $psqlExe = Join-Path -Path $selectedDir -ChildPath "bin\psql.exe"
 
-    if ((Test-Path $hbaFile) -and (Test-Path $psqlExe)) {
-      Write-Host "      Configuring PostgreSQL at: $pgDir" -ForegroundColor Cyan
+      if ((Test-Path -Path $hbaFile) -and (Test-Path -Path $psqlExe)) {
+        Write-Host ("      Configuring PostgreSQL in: " + $selectedDir) -ForegroundColor Cyan
 
-      # Temporarily set IPv4 & IPv6 localhost to trust
-      (Get-Content $hbaFile) -replace '^(host\s+all\s+all\s+(127\.0\.0\.1/32|::1/128)\s+)(scram-sha-256|md5)', '${1}trust' | Set-Content -Encoding ascii $hbaFile
-      Restart-Service -Name $activeService.Name -Force
-      Start-Sleep -Seconds 2
-
-      try {
-        Write-Host "      Resetting 'postgres' password to 'postgres'..." -ForegroundColor Cyan
-        & $psqlExe -h localhost -p 5432 -U postgres -c "ALTER USER postgres WITH PASSWORD 'postgres';" | Out-Null
-
-        $dbExists = (& $psqlExe -h localhost -p 5432 -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='contextlm';").Trim()
-        if ($dbExists -ne "1") {
-          Write-Host "      Creating database 'contextlm'..." -ForegroundColor Cyan
-          & $psqlExe -h localhost -p 5432 -U postgres -c "CREATE DATABASE contextlm;" | Out-Null
-        } else {
-          Write-Host "      Database 'contextlm' already exists." -ForegroundColor Green
+        # Temporarily set localhost IPv4 and IPv6 host lines to trust
+        $origLines = Get-Content -Path $hbaFile
+        $trustLines = foreach ($line in $origLines) {
+          if (($line -match '^host\s+all\s+all') -and ($line -match '(scram-sha-256|md5)\s*$')) {
+            $line -replace '(scram-sha-256|md5)\s*$', 'trust'
+          } else {
+            $line
+          }
         }
-        $pgConfigured = $true
-      } finally {
-        # Always restore scram-sha-256 and restart
-        (Get-Content $hbaFile) -replace '^(host\s+all\s+all\s+(127\.0\.0\.1/32|::1/128)\s+)trust', '${1}scram-sha-256' | Set-Content -Encoding ascii $hbaFile
+        Set-Content -Path $hbaFile -Value $trustLines -Encoding ascii
         Restart-Service -Name $activeService.Name -Force
         Start-Sleep -Seconds 2
-      }
 
-      Write-Host "      PostgreSQL is ready! (Host: localhost, Port: 5432, User: postgres, Pass: postgres, DB: contextlm)" -ForegroundColor Green
+        try {
+          Write-Host "      Setting 'postgres' password to 'postgres'..." -ForegroundColor Cyan
+          $alterSql = "ALTER USER postgres WITH PASSWORD 'postgres';"
+          & $psqlExe -h localhost -p 5432 -U postgres -c $alterSql | Out-Null
+
+          $checkSql = "SELECT 1 FROM pg_database WHERE datname='contextlm';"
+          $dbCheck = (& $psqlExe -h localhost -p 5432 -U postgres -tAc $checkSql) | Out-String
+          if ($dbCheck.Trim() -ne "1") {
+            Write-Host "      Creating database 'contextlm'..." -ForegroundColor Cyan
+            $createSql = "CREATE DATABASE contextlm;"
+            & $psqlExe -h localhost -p 5432 -U postgres -c $createSql | Out-Null
+          } else {
+            Write-Host "      Database 'contextlm' already exists." -ForegroundColor Green
+          }
+          $pgConfigured = $true
+        } finally {
+          # Restore scram-sha-256 and restart service
+          $lockedLines = foreach ($line in (Get-Content -Path $hbaFile)) {
+            if (($line -match '^host\s+all\s+all') -and ($line -match '\s+trust\s*$')) {
+              $line -replace '\s+trust\s*$', ' scram-sha-256'
+            } else {
+              $line
+            }
+          }
+          Set-Content -Path $hbaFile -Value $lockedLines -Encoding ascii
+          Restart-Service -Name $activeService.Name -Force
+          Start-Sleep -Seconds 2
+        }
+
+        Write-Host "      PostgreSQL is ready! (localhost:5432, user: postgres, pass: postgres, db: contextlm)" -ForegroundColor Green
+      } else {
+        Write-Warning "Could not find pg_hba.conf or psql.exe. Falling back to DEMO_MOCK_MODE."
+        $MockMode = $true
+      }
     } else {
-      Write-Warning "Could not locate pg_hba.conf or psql.exe under $pgDir. Falling back to DEMO_MOCK_MODE."
+      Write-Warning "No PostgreSQL installation folder found. Falling back to DEMO_MOCK_MODE."
       $MockMode = $true
     }
   } else {
-    Write-Warning "No PostgreSQL Windows service found. Enabling DEMO_MOCK_MODE so the app runs without PostgreSQL."
+    Write-Warning "No PostgreSQL service found. Falling back to DEMO_MOCK_MODE."
     $MockMode = $true
   }
 }
 
-# 2. Create or update .env
-Write-Host "`n[2/4] Configuring .env file..." -ForegroundColor Cyan
-$envFile = Join-Path $PSScriptRoot ".env"
-$mockFlag = if ($MockMode) { "true" } else { "false" }
+Write-Host ""
+Write-Host "[2/4] Writing .env configuration..." -ForegroundColor Cyan
+$envFile = Join-Path -Path $PSScriptRoot -ChildPath ".env"
+$mockValue = if ($MockMode) { "true" } else { "false" }
 
-if (-not (Test-Path $envFile)) {
-  $secret = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 40 | ForEach-Object { [char]$_ })
-  @"
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/contextlm"
-AUTH_SECRET="$secret"
-AUTH_URL="http://localhost:3000"
-OPENAI_API_KEY=""
-OPENAI_PRIMARY_MODEL="gpt-4o-mini"
-OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"
-DEMO_MOCK_MODE="$mockFlag"
-NEXT_PUBLIC_DEMO_MOCK_MODE="$mockFlag"
-"@ | Set-Content -Encoding utf8 $envFile
-  Write-Host "      Created .env with DATABASE_URL=postgresql://postgres:postgres@localhost:5432/contextlm" -ForegroundColor Green
-} else {
-  $envText = Get-Content $envFile -Raw
-  if ($pgConfigured) {
-    $envText = $envText -replace 'DATABASE_URL="[^"]*"', 'DATABASE_URL="postgresql://postgres:postgres@localhost:5432/contextlm"'
+# Preserve existing OPENAI_API_KEY if user already set one in .env
+$existingOpenAiKey = ""
+if (Test-Path -Path $envFile) {
+  foreach ($envLine in (Get-Content -Path $envFile)) {
+    if ($envLine -match '^OPENAI_API_KEY=(.*)$') {
+      $existingOpenAiKey = $Matches[1].Trim('"').Trim("'")
+    }
   }
-  if ($envText -notmatch "DEMO_MOCK_MODE=") {
-    $envText += "`nDEMO_MOCK_MODE=`"$mockFlag`"`nNEXT_PUBLIC_DEMO_MOCK_MODE=`"$mockFlag`"`n"
-  }
-  Set-Content -Encoding utf8 $envFile $envText.TrimEnd()
-  Write-Host "      Updated existing .env file." -ForegroundColor Green
 }
 
-# 3. Install dependencies & push Prisma schema
-Write-Host "`n[3/4] Installing dependencies & syncing database schema..." -ForegroundColor Cyan
-cmd /c "npm install"
+$envLines = @(
+  'DATABASE_URL="postgresql://postgres:postgres@localhost:5432/contextlm"',
+  'AUTH_SECRET="contextlm-local-dev-secret-key-2026-secure-token"',
+  'AUTH_URL="http://localhost:3000"',
+  ('OPENAI_API_KEY="' + $existingOpenAiKey + '"'),
+  'OPENAI_PRIMARY_MODEL="gpt-4o-mini"',
+  'OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"',
+  ('DEMO_MOCK_MODE="' + $mockValue + '"'),
+  ('NEXT_PUBLIC_DEMO_MOCK_MODE="' + $mockValue + '"')
+)
+Set-Content -Path $envFile -Value $envLines -Encoding utf8
+Write-Host "      Saved .env successfully." -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[3/4] Installing packages and syncing Prisma database..." -ForegroundColor Cyan
+cmd.exe /c "npm install"
 if (-not $MockMode) {
-  cmd /c "npm run db:push"
-  cmd /c "npm run db:seed"
+  cmd.exe /c "npm run db:push"
+  cmd.exe /c "npm run db:seed"
 }
 
-# 4. Launch development server
 if (-not $NoStart) {
-  Write-Host "`n[4/4] Starting ContextLM at http://localhost:3000 ..." -ForegroundColor Green
-  Write-Host "      Default Admin Login: username = admin | password = admin`n" -ForegroundColor Yellow
-  cmd /c "npm run dev"
+  Write-Host ""
+  Write-Host "[4/4] Starting ContextLM at http://localhost:3000 ..." -ForegroundColor Green
+  Write-Host "      Default Admin Login: username = admin | password = admin" -ForegroundColor Yellow
+  Write-Host ""
+  cmd.exe /c "npm run dev"
 }
