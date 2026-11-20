@@ -220,7 +220,10 @@ export function ChatPanel({
                     key={msg.id}
                     className="flex justify-end animate-message-in"
                   >
-                    <div className="max-w-[82%] rounded-2xl rounded-ee-sm bg-[#e0fbfc] px-4 py-3 text-sm leading-relaxed text-[#253237] border border-[#9db4c0]/70 shadow-xs whitespace-pre-wrap">
+                    <div
+                      dir="auto"
+                      className="max-w-[82%] rounded-2xl rounded-br-sm bg-[#e0fbfc] px-4 py-3 text-sm leading-relaxed text-[#253237] border border-[#9db4c0]/70 shadow-xs whitespace-pre-wrap"
+                    >
                       {msg.content}
                     </div>
                   </div>
@@ -243,7 +246,10 @@ export function ChatPanel({
                           <p className="text-xs font-bold uppercase tracking-wider text-[#c2dfe3]">
                             {t.chat.guardrailTriggeredTitle}
                           </p>
-                          <p className="text-sm leading-relaxed text-[#e0fbfc]">
+                          <p
+                            dir="auto"
+                            className="text-sm leading-relaxed text-[#e0fbfc]"
+                          >
                             {msg.content}
                           </p>
                         </div>
@@ -262,7 +268,7 @@ export function ChatPanel({
                   className="flex justify-start animate-message-in"
                 >
                   <div
-                    className={`max-w-[92%] rounded-2xl rounded-es-sm px-5 py-4 border shadow-xs transition-colors ${
+                    className={`max-w-[92%] rounded-2xl rounded-bl-sm px-5 py-4 border shadow-xs transition-colors ${
                       isNoContextRefusal
                         ? "bg-[#c2dfe3]/65 border-[#5c6b73]/55"
                         : "bg-white border-[#9db4c0]/50"
@@ -275,7 +281,7 @@ export function ChatPanel({
                       </div>
                     )}
 
-                    <div className="contextlm-prose">
+                    <div dir="auto" className="contextlm-prose">
                       {msg.content ? (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
@@ -357,6 +363,7 @@ export function ChatPanel({
             <textarea
               ref={textareaRef}
               id="chat-query-input"
+              dir="auto"
               rows={1}
               maxLength={MAX_QUERY_CHARS}
               value={input}

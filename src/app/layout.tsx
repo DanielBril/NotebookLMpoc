@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="he"
-      dir="rtl"
+      dir="ltr"
       suppressHydrationWarning
       className={`${heebo.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >

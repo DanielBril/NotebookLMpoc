@@ -818,8 +818,8 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue>({
   lang: "he",
-  dir: "rtl",
-  isRtl: true,
+  dir: "ltr",
+  isRtl: false,
   setLang: () => {},
   toggleLang: () => {},
   t: HE,
@@ -868,9 +868,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const dir = lang === "he" ? "rtl" : "ltr";
+    // Only update the language attribute; keep layout direction fixed ("ltr")
+    // so switching languages never shifts the UI from side to side.
     document.documentElement.lang = lang;
-    document.documentElement.dir = dir;
+    document.documentElement.dir = "ltr";
   }, [lang]);
 
   const setLang = useCallback((next: Language) => {
@@ -885,8 +886,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LanguageContextValue>(
     () => ({
       lang,
-      dir: lang === "he" ? "rtl" : "ltr",
-      isRtl: lang === "he",
+      dir: "ltr",
+      isRtl: false,
       setLang,
       toggleLang,
       t: DICTIONARIES[lang],

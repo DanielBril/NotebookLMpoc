@@ -10,6 +10,23 @@ export const MANDATORY_REFUSAL_EN =
 
 export const MANDATORY_REFUSAL = MANDATORY_REFUSAL_HE;
 
+/**
+ * Detects the language of the user's question directly from its script
+ * (Hebrew vs. English/Latin) so the AI always responds in the question's language.
+ */
+export function detectQueryLanguage(
+  query: string,
+  fallback: GuardrailLang = "he"
+): GuardrailLang {
+  const hebrewMatches = query.match(/[\u0590-\u05FF]/g);
+  const latinMatches = query.match(/[A-Za-z]/g);
+  const hebrewCount = hebrewMatches ? hebrewMatches.length : 0;
+  const latinCount = latinMatches ? latinMatches.length : 0;
+
+  if (hebrewCount === 0 && latinCount === 0) return fallback;
+  return hebrewCount >= latinCount ? "he" : "en";
+}
+
 export function getMandatoryRefusal(lang: GuardrailLang = "he"): string {
   return lang === "en" ? MANDATORY_REFUSAL_EN : MANDATORY_REFUSAL_HE;
 }
@@ -57,17 +74,14 @@ export function orderSourcesDeterministically(docs: GroundedSourceDoc[]): Ordere
  * - Cryptographic nonce trust boundary separating instructions from untrusted data
  * - Strict grounded-only policy with mandatory refusal protocol
  * - Inline citation requirement: [1] filename.ext
+ * - Strict question-language matching rule
  * - Hidden canary marker monitored by Layer 4 Output Filter
  */
 export function buildGroundedSystemPrompt(
   nonce: string,
-  lang: GuardrailLang = "he"
+  queryLang: GuardrailLang = "he"
 ): string {
-  const refusal = getMandatoryRefusal(lang);
-  const languageDirective =
-    lang === "he"
-      ? "Respond in Hebrew unless the user explicitly writes in another language, in which case match the user's question language."
-      : "Respond in English unless the user explicitly writes in another language, in which case match the user's question language.";
+  const refusal = getMandatoryRefusal(queryLang);
 
   return [
     "You are ContextLM, a strict, deterministic, document-grounded Question Answering engine.",
@@ -85,8 +99,8 @@ export function buildGroundedSystemPrompt(
     "2. Do NOT extrapolate, speculate, or pull in outside facts not stated in the sources.",
     "3. For EVERY factual claim, include an inline citation using the exact format `[N] filename` matching the source's `index` and `filename` attributes (for example: `[1] contract.pdf`).",
     "4. Structure answers clearly with concise Markdown (bullet points, bold key terms, or compact tables when comparing items across sources).",
-    `5. LANGUAGE: ${languageDirective}`,
-    `6. MANDATORY REFUSAL: If the answer is NOT explicitly supported by the provided sources, respond with ONLY this exact sentence and nothing else:\n"${refusal}"`,
+    "5. MANDATORY LANGUAGE RULE: ALWAYS respond in the EXACT SAME LANGUAGE as the user's question inside <user_query>, regardless of the language of the uploaded source documents or the UI. If the question is written in Hebrew, your entire answer MUST be in Hebrew. If the question is written in English, your entire answer MUST be in English. If the question is in any other language, answer in that exact language.",
+    `6. MANDATORY REFUSAL: If the answer is NOT explicitly supported by the provided sources, respond with ONLY the mandatory refusal sentence matching the question's language (Hebrew question -> "${MANDATORY_REFUSAL_HE}"; English question -> "${MANDATORY_REFUSAL_EN}"; current detected question language default -> "${refusal}") and nothing else.`,
   ].join("\n");
 }
 

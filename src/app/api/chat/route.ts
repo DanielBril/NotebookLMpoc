@@ -15,6 +15,7 @@ import {
 import {
   assembleSandboxedContext,
   buildGroundedSystemPrompt,
+  detectQueryLanguage,
   getMandatoryRefusal,
   isMandatoryRefusal,
   orderSourcesDeterministically,
@@ -166,22 +167,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
   }
 
-  const lang: GuardrailLang = body.lang === "en" ? "en" : "he";
-  const mandatoryRefusal = getMandatoryRefusal(lang);
-  const outputGuardRefusal = getOutputGuardRefusal(lang);
-
+  const uiLang: GuardrailLang = body.lang === "en" ? "en" : "he";
   const query = (body.query ?? "").trim();
   if (!query) {
     return NextResponse.json(
       {
         error:
-          lang === "he"
+          uiLang === "he"
             ? "לא ניתן לשלוח שאילתה ריקה."
             : "Query cannot be empty.",
       },
       { status: 400 }
     );
   }
+
+  // Always match the language of the user's question (Hebrew question -> Hebrew answer, English question -> English answer)
+  const lang: GuardrailLang = detectQueryLanguage(query, uiLang);
+  const mandatoryRefusal = getMandatoryRefusal(lang);
+  const outputGuardRefusal = getOutputGuardRefusal(lang);
+
   if (query.length > MAX_QUERY_CHARS) {
     return NextResponse.json(
       {
