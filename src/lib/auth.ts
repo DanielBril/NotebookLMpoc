@@ -4,7 +4,12 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { authConfig } from "@/lib/auth.config";
+import { authConfig, isGoogleOAuthConfigured } from "@/lib/auth.config";
+
+const googleClientId =
+  (process.env.GOOGLE_CLIENT_ID ?? process.env.AUTH_GOOGLE_ID ?? "").trim();
+const googleClientSecret =
+  (process.env.GOOGLE_CLIENT_SECRET ?? process.env.AUTH_GOOGLE_SECRET ?? "").trim();
 
 class BlockedAccountError extends CredentialsSignin {
   code = "account_blocked";
@@ -41,11 +46,11 @@ async function generateUniqueUsername(email?: string | null, name?: string | nul
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(isGoogleOAuthConfigured
       ? [
           Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
           }),
         ]
       : []),

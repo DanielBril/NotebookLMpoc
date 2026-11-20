@@ -14,12 +14,20 @@ Write-Host ""
 
 $envFile = Join-Path -Path $PSScriptRoot -ChildPath ".env"
 
-# Preserve existing OPENAI_API_KEY if already configured
+# Preserve existing OPENAI_API_KEY, GOOGLE_CLIENT_ID, and GOOGLE_CLIENT_SECRET if already configured
 $existingOpenAiKey = ""
+$existingGoogleId = ""
+$existingGoogleSecret = ""
 if (Test-Path -Path $envFile) {
   foreach ($envLine in (Get-Content -Path $envFile)) {
     if ($envLine -match '^OPENAI_API_KEY=(.*)$') {
       $existingOpenAiKey = $Matches[1].Trim('"').Trim("'")
+    }
+    if ($envLine -match '^GOOGLE_CLIENT_ID=(.*)$') {
+      $existingGoogleId = $Matches[1].Trim('"').Trim("'")
+    }
+    if ($envLine -match '^GOOGLE_CLIENT_SECRET=(.*)$') {
+      $existingGoogleSecret = $Matches[1].Trim('"').Trim("'")
     }
   }
 }
@@ -36,7 +44,9 @@ $envLines = @(
   'AUTH_URL="http://localhost:3000"',
   ('OPENAI_API_KEY="' + $existingOpenAiKey + '"'),
   'OPENAI_PRIMARY_MODEL="gpt-4o-mini"',
-  'OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"'
+  'OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"',
+  ('GOOGLE_CLIENT_ID="' + $existingGoogleId + '"'),
+  ('GOOGLE_CLIENT_SECRET="' + $existingGoogleSecret + '"')
 )
 Set-Content -Path $envFile -Value $envLines -Encoding utf8
 Write-Host "      .env saved with Supabase DATABASE_URL and DIRECT_URL." -ForegroundColor Green

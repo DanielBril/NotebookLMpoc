@@ -27,8 +27,17 @@ function LoginFormContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const urlError = searchParams.get("error");
   const effectiveErrorKey =
-    errorKey ?? (searchParams.get("error") === "AccountBlocked" ? "blocked" : null);
+    errorKey ??
+    (urlError === "AccountBlocked"
+      ? "blocked"
+      : urlError === "OAuthSignin" ||
+          urlError === "OAuthCallback" ||
+          urlError === "OAuthCallbackError" ||
+          urlError === "Configuration"
+        ? "google"
+        : null);
 
   const errorMessage =
     effectiveErrorKey === "missing"
@@ -92,6 +101,22 @@ function LoginFormContent() {
     setErrorKey(null);
     setIsGoogleLoading(true);
     try {
+      // Verify that the server has GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET configured
+      // before performing a full-page POST to /api/auth/signin/google
+      const providersRes = await fetch("/api/auth/providers", {
+        cache: "no-store",
+      });
+      if (providersRes.ok) {
+        const providers = (await providersRes.json()) as Record<
+          string,
+          unknown
+        >;
+        if (!providers?.google) {
+          setErrorKey("google");
+          setIsGoogleLoading(false);
+          return;
+        }
+      }
       await signIn("google", { callbackUrl: "/workspace" });
     } catch {
       setErrorKey("google");

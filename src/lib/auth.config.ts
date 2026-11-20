@@ -2,6 +2,17 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { Role } from "@prisma/client";
 
+const googleClientId =
+  (process.env.GOOGLE_CLIENT_ID ?? process.env.AUTH_GOOGLE_ID ?? "").trim();
+const googleClientSecret =
+  (process.env.GOOGLE_CLIENT_SECRET ?? process.env.AUTH_GOOGLE_SECRET ?? "").trim();
+
+export const isGoogleOAuthConfigured =
+  Boolean(googleClientId) &&
+  Boolean(googleClientSecret) &&
+  googleClientId !== "your-google-oauth-client-id" &&
+  googleClientSecret !== "your-google-oauth-client-secret";
+
 /**
  * Edge-compatible Auth.js configuration shared by middleware and server auth.
  * Does not import Prisma or bcryptjs so it runs safely in edge/proxy runtimes.
@@ -16,11 +27,11 @@ export const authConfig: NextAuthConfig = {
     signIn: "/login",
   },
   providers: [
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(isGoogleOAuthConfigured
       ? [
           Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
           }),
         ]
       : []),
