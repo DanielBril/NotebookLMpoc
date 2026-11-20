@@ -36,15 +36,13 @@ $envLines = @(
   'AUTH_URL="http://localhost:3000"',
   ('OPENAI_API_KEY="' + $existingOpenAiKey + '"'),
   'OPENAI_PRIMARY_MODEL="gpt-4o-mini"',
-  'OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"',
-  'DEMO_MOCK_MODE="false"',
-  'NEXT_PUBLIC_DEMO_MOCK_MODE="false"'
+  'OPENAI_GUARDRAIL_MODEL="gpt-4o-mini"'
 )
 Set-Content -Path $envFile -Value $envLines -Encoding utf8
 Write-Host "      .env saved with Supabase DATABASE_URL and DIRECT_URL." -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[2/3] Installing dependencies, pushing Prisma schema to Supabase, and seeding admin..." -ForegroundColor Cyan
+Write-Host "[2/3] Syncing Prisma schema, purging mock users/data, and seeding only admin..." -ForegroundColor Cyan
 cmd.exe /c "npm install"
 cmd.exe /c "npm run db:push"
 cmd.exe /c "npm run db:seed"
@@ -52,7 +50,7 @@ cmd.exe /c "npm run db:seed"
 if (-not $NoStart) {
   Write-Host ""
   Write-Host "[3/3] Starting ContextLM at http://localhost:3000 ..." -ForegroundColor Green
-  Write-Host "      Default Admin Login: username = admin | password = admin" -ForegroundColor Yellow
+  Write-Host "      Admin Login: username = admin | password = admin" -ForegroundColor Yellow
   Write-Host ""
   cmd.exe /c "npm run dev"
 }

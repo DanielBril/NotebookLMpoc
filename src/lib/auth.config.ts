@@ -2,8 +2,6 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { Role } from "@prisma/client";
 
-const useIframePreviewCookies = process.env.IFRAME_PREVIEW_COOKIES === "true";
-
 /**
  * Edge-compatible Auth.js configuration shared by middleware and server auth.
  * Does not import Prisma or bcryptjs so it runs safely in edge/proxy runtimes.
@@ -14,42 +12,6 @@ export const authConfig: NextAuthConfig = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  ...(useIframePreviewCookies
-    ? {
-        // Allow session & CSRF cookies inside embedded HTTPS preview iframes
-        cookies: {
-          sessionToken: {
-            name: "authjs.session-token",
-            options: {
-              httpOnly: true,
-              sameSite: "none" as const,
-              path: "/",
-              secure: true,
-              partitioned: true,
-            },
-          },
-          callbackUrl: {
-            name: "authjs.callback-url",
-            options: {
-              sameSite: "none" as const,
-              path: "/",
-              secure: true,
-              partitioned: true,
-            },
-          },
-          csrfToken: {
-            name: "authjs.csrf-token",
-            options: {
-              httpOnly: true,
-              sameSite: "none" as const,
-              path: "/",
-              secure: true,
-              partitioned: true,
-            },
-          },
-        },
-      }
-    : {}),
   pages: {
     signIn: "/login",
   },

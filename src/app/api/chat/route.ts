@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
   const hourOfDay = now.getUTCHours();
   const dayOfWeek = now.getUTCDay();
   const userId = session.user.id;
-  const primaryModel = process.env.OPENAI_PRIMARY_MODEL || "gpt-6-luna";
+  const primaryModel = process.env.OPENAI_PRIMARY_MODEL || "gpt-4o-mini";
 
   let body: { query?: string; lang?: string };
   try {
@@ -327,127 +327,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const rawApiKey = (process.env.OPENAI_API_KEY ?? "").trim();
-  const hasRealOpenAiKey =
-    Boolean(rawApiKey) && rawApiKey !== "sk-your-openai-api-key";
-
-  if (process.env.DEMO_MOCK_MODE === "true" || !hasRealOpenAiKey) {
-    await prisma.message.create({
-      data: { userId, role: "user", content: query },
-    });
-
-    const orderedSources = orderSourcesDeterministically(activeDocs);
-    const { buildMockGroundedAnswer } = await import("@/lib/mockAi");
-    const mockResult = buildMockGroundedAnswer(query, orderedSources, lang);
-    const finalContent = mockResult.isRefusal
-      ? mandatoryRefusal
-      : mockResult.content;
-    const citations = mockResult.isRefusal
-      ? []
-      : extractCitationsFromAnswer(finalContent, orderedSources);
-
-    const promptTokens = orderedSources.reduce(
-      (sum, s) => sum + s.tokenCount,
-      320
-    );
-    const cachedTokens = Math.round(promptTokens * 0.78);
-    const completionTokens = Math.max(24, Math.ceil(finalContent.length / 4));
-    const totalTokens = promptTokens + completionTokens;
-    const mockModel = "gpt-6-luna-mock";
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        controller.enqueue(
-          buildSseEvent("meta", {
-            sources: orderedSources.map((s) => ({
-              index: s.index,
-              documentId: s.id,
-              filename: s.filename,
-            })),
-          })
-        );
-
-        // Simulate sub-second TTFT and smooth token streaming
-        await new Promise((r) => setTimeout(r, 140));
-        const ttftMs = Date.now() - requestStartedAt;
-        const words = finalContent.split(/(\s+)/);
-
-        for (let i = 0; i < words.length; i += 2) {
-          const piece = words.slice(i, i + 2).join("");
-          if (piece) {
-            controller.enqueue(buildSseEvent("token", { content: piece }));
-            await new Promise((r) => setTimeout(r, 18));
-          }
-        }
-
-        const latencyMs = Date.now() - requestStartedAt;
-        const estimatedCostUsd = calculateCostUsd({
-          model: mockModel,
-          promptTokens,
-          cachedTokens,
-          completionTokens,
-        });
-
-        const savedMsg = await prisma.message.create({
-          data: {
-            userId,
-            role: "assistant",
-            content: finalContent,
-            citations:
-              citations.length > 0
-                ? (citations as unknown as object)
-                : undefined,
-          },
-        });
-
-        await prisma.usageLog.create({
-          data: {
-            userId,
-            model: mockModel,
-            promptTokens,
-            cachedTokens,
-            completionTokens,
-            totalTokens,
-            estimatedCostUsd,
-            latencyMs,
-            status: mockResult.isRefusal
-              ? QueryStatus.NO_CONTEXT_FOUND
-              : QueryStatus.SUCCESS,
-            flaggedText: null,
-            hourOfDay,
-            dayOfWeek,
-          },
-        });
-
-        controller.enqueue(
-          buildSseEvent("done", {
-            messageId: savedMsg.id,
-            citations,
-            usage: {
-              promptTokens,
-              cachedTokens,
-              completionTokens,
-              estimatedCostUsd,
-              latencyMs,
-              ttftMs,
-            },
-          })
-        );
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
-    });
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = (process.env.OPENAI_API_KEY ?? "").trim();
   if (!apiKey) {
     return NextResponse.json(
       {
@@ -463,7 +343,7 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey });
 
   // ---------------------------------------------------------------------------
-  // LAYER 4 (Pre-Synthesis): Fast Micro-Classifier (gpt-5-nano) on borderline queries
+  // LAYER 4 (Pre-Synthesis): Fast Micro-Classifier on borderline queries
   // ---------------------------------------------------------------------------
   if (shouldRunMicroClassifier(query)) {
     const cls = await runMicroClassifier(openai, query);
@@ -710,116 +590,27 @@ export async function POST(req: NextRequest) {
         const message =
           err instanceof Error ? err.message : "OpenAI streaming request failed.";
 
-        const isQuotaOrCreditError =
-          /429|no credits remaining|insufficient_quota|exceeded your current quota|billing/i.test(
-            message
-          );
-
-        if (isQuotaOrCreditError && !fullAnswer) {
-          // Seamlessly fall back to the local grounded Mock AI engine so the user can continue testing
-          const { buildMockGroundedAnswer } = await import("@/lib/mockAi");
-          const mockResult = buildMockGroundedAnswer(
-            query,
-            orderedSources,
-            lang
-          );
-          const fallbackContent = mockResult.isRefusal
-            ? mandatoryRefusal
-            : mockResult.content;
-          const citations = mockResult.isRefusal
-            ? []
-            : extractCitationsFromAnswer(fallbackContent, orderedSources);
-
-          const words = fallbackContent.split(/(\s+)/);
-          for (let i = 0; i < words.length; i += 2) {
-            const piece = words.slice(i, i + 2).join("");
-            if (piece) {
-              controller.enqueue(buildSseEvent("token", { content: piece }));
-              await new Promise((r) => setTimeout(r, 15));
-            }
-          }
-
-          const estPromptTok = orderedSources.reduce(
-            (sum, s) => sum + s.tokenCount,
-            320
-          );
-          const estCachedTok = Math.round(estPromptTok * 0.78);
-          const estCompletionTok = Math.max(
-            24,
-            Math.ceil(fallbackContent.length / 4)
-          );
-
-          const savedMsg = await prisma.message.create({
+        await prisma.usageLog
+          .create({
             data: {
               userId,
-              role: "assistant",
-              content: fallbackContent,
-              citations:
-                citations.length > 0
-                  ? (citations as unknown as object)
-                  : undefined,
+              model: primaryModel,
+              promptTokens,
+              cachedTokens,
+              completionTokens,
+              totalTokens,
+              estimatedCostUsd: 0,
+              latencyMs,
+              status: QueryStatus.ERROR,
+              guardrailReason: null,
+              flaggedText: null,
+              hourOfDay,
+              dayOfWeek,
             },
-          });
+          })
+          .catch(() => {});
 
-          await prisma.usageLog
-            .create({
-              data: {
-                userId,
-                model: "gpt-6-luna-mock",
-                promptTokens: estPromptTok,
-                cachedTokens: estCachedTok,
-                completionTokens: estCompletionTok,
-                totalTokens: estPromptTok + estCompletionTok,
-                estimatedCostUsd: 0,
-                latencyMs: Date.now() - requestStartedAt,
-                status: mockResult.isRefusal
-                  ? QueryStatus.NO_CONTEXT_FOUND
-                  : QueryStatus.SUCCESS,
-                guardrailReason: null,
-                flaggedText: null,
-                hourOfDay,
-                dayOfWeek,
-              },
-            })
-            .catch(() => {});
-
-          controller.enqueue(
-            buildSseEvent("done", {
-              messageId: savedMsg.id,
-              citations,
-              usage: {
-                promptTokens: estPromptTok,
-                cachedTokens: estCachedTok,
-                completionTokens: estCompletionTok,
-                estimatedCostUsd: 0,
-                latencyMs: Date.now() - requestStartedAt,
-                ttftMs: latencyMs,
-              },
-            })
-          );
-        } else {
-          await prisma.usageLog
-            .create({
-              data: {
-                userId,
-                model: primaryModel,
-                promptTokens,
-                cachedTokens,
-                completionTokens,
-                totalTokens,
-                estimatedCostUsd: 0,
-                latencyMs,
-                status: QueryStatus.ERROR,
-                guardrailReason: null,
-                flaggedText: null,
-                hourOfDay,
-                dayOfWeek,
-              },
-            })
-            .catch(() => {});
-
-          controller.enqueue(buildSseEvent("error", { error: message }));
-        }
+        controller.enqueue(buildSseEvent("error", { error: message }));
       } finally {
         controller.close();
       }
