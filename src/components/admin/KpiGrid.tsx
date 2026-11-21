@@ -78,12 +78,9 @@ export function KpiGrid({ kpis }: KpiGridProps) {
   ];
 
   return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-x-8 lg:gap-y-8 lg:border-y lg:border-slate-200 lg:py-8">
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-y-6 gap-x-5 sm:gap-y-8 sm:gap-x-8 border-y border-slate-200 py-5 sm:py-8">
       {items.map((it) => (
-        <div
-          key={it.label}
-          className="glass-panel lg:bg-transparent lg:backdrop-blur-none rounded-2xl lg:rounded-none border lg:border-0 p-3.5 sm:p-4 lg:p-0 min-w-0"
-        >
+        <div key={it.label} className="min-w-0">
           <p className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 truncate">
             <span className={`h-2 w-2 rounded-full shrink-0 ${it.dot}`} />
             <span className="truncate">{it.label}</span>
