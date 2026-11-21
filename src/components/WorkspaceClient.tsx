@@ -467,19 +467,28 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   }
 
   async function handleClearChat() {
-    const res = await fetch("/api/chat", { method: "DELETE" });
-    if (res.status === 403) {
-      const errJson = (await res.json().catch(() => ({}))) as {
-        accountBlocked?: boolean;
-        reason?: string | null;
-      };
-      if (errJson.accountBlocked) {
-        setBlockedState({ blocked: true, reason: errJson.reason ?? null });
-        return;
+    const previousMessages = messages;
+    setMessages([]);
+    try {
+      const res = await fetch("/api/chat", { method: "DELETE" });
+      if (res.status === 403) {
+        const errJson = (await res.json().catch(() => ({}))) as {
+          accountBlocked?: boolean;
+          reason?: string | null;
+        };
+        if (errJson.accountBlocked) {
+          setMessages(previousMessages);
+          setBlockedState({ blocked: true, reason: errJson.reason ?? null });
+          return;
+        }
       }
-    }
-    if (res.ok) {
-      setMessages([]);
+      if (!res.ok) {
+        setMessages(previousMessages);
+        setToastError(t.chat.errRequestFailed);
+      }
+    } catch {
+      setMessages(previousMessages);
+      setToastError(t.chat.errConnectionInterrupted);
     }
   }
 
