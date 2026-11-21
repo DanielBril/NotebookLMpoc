@@ -91,10 +91,10 @@ export function Navbar({
     navItems.find((item) => item.key === mode)?.label ?? t.navbar.workspaceBtn;
 
   return (
-    <header className="relative z-30 shrink-0 w-full max-w-full bg-[#0f172a]/88 backdrop-blur-xl text-white border-b border-white/12 shadow-[0_8px_28px_-12px_rgba(15,23,42,0.45)]">
-      <div className="h-14 px-3 sm:px-5 flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+    <header className="sticky top-0 z-30 shrink-0 w-full max-w-full bg-[#0f172a]/90 backdrop-blur-xl text-white border-b border-white/12 shadow-[0_8px_28px_-12px_rgba(15,23,42,0.45)]">
+      <div className="h-14 px-2.5 sm:px-5 flex items-center justify-between gap-1.5 sm:gap-3 min-w-0">
         {/* Start: Brand + Mode Navigation */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <Link
             href="/workspace"
             title={isHe ? "דף הבית — מרחב עבודה" : "Home — Workspace"}
@@ -129,13 +129,13 @@ export function Navbar({
             )}
           </nav>
 
-          {/* Compact Role Switcher Dropdown for Narrow / Split-Screen Viewports (< 1024px) */}
+          {/* Compact Role Switcher Dropdown for Narrow / Phone Viewports (< 1024px) */}
           {isPrivileged && (
             <div ref={navMenuRef} className="relative lg:hidden min-w-0">
               <button
                 type="button"
                 onClick={() => setNavMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-2 py-1 text-[11px] font-medium text-white max-w-[130px] sm:max-w-[180px] cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-2 py-1.5 text-[11px] font-medium text-white max-w-[118px] sm:max-w-[180px] cursor-pointer"
               >
                 <span className="truncate">{currentNavLabel}</span>
                 <ChevronDown
@@ -148,14 +148,14 @@ export function Navbar({
               {navMenuOpen && (
                 <div
                   dir={isHe ? "rtl" : "ltr"}
-                  className="animate-popover-in absolute top-full start-0 mt-2 w-48 max-w-[calc(100vw-2rem)] rounded-xl bg-[#0f172a]/95 backdrop-blur-xl border border-white/15 shadow-xl p-1.5 z-50 space-y-0.5"
+                  className="animate-popover-in fixed top-[3.75rem] inset-x-3 sm:absolute sm:top-full sm:inset-x-auto sm:left-0 sm:mt-2 sm:w-52 rounded-xl bg-[#0f172a]/96 backdrop-blur-xl border border-white/15 shadow-2xl p-1.5 z-50 space-y-1"
                 >
                   {navItems.map((item) => (
                     <Link
                       key={item.key}
                       href={item.href}
                       onClick={() => setNavMenuOpen(false)}
-                      className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                      className={`block rounded-lg px-3 py-2.5 sm:py-2 text-xs font-medium transition-colors ${
                         mode === item.key
                           ? "bg-teal-600 text-white"
                           : "text-slate-200 hover:bg-white/10 hover:text-white"

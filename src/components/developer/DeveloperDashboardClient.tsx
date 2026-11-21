@@ -397,21 +397,21 @@ export function DeveloperDashboardClient({
     <div className="min-h-screen flex flex-col glass-canvas">
       <Navbar mode="developer" user={user} />
 
-      <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">
+      <main className="flex-1 mx-auto w-full max-w-[1140px] px-3 sm:px-8 py-6 sm:py-10 space-y-8 sm:space-y-12">
         {/* Header: title + Refresh */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end justify-between gap-3 sm:gap-4">
           <div dir={isHe ? "rtl" : "ltr"} className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-3xl font-semibold tracking-tight text-slate-900">
               {isHe
                 ? "דיאגנוסטיקה, מנהרת אבטחה ולוגים"
                 : "Diagnostics, Security Tunnel & Logs"}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">
               {isHe
                 ? "בריאות מערכת, יומן החלטות עם הודעת המשתמש, עריכת מנהרת האבטחה, לוגים וכלי תחזוקה."
                 : "System health, decision audit with user messages, editable security tunnel, stack logs, and repair tools."}
               {data && (
-                <span className="font-mono text-xs text-slate-400" dir="ltr">
+                <span className="font-mono text-[11px] sm:text-xs text-slate-400" dir="ltr">
                   {" "}
                   · {new Date(data.generatedAt).toLocaleTimeString()} ·{" "}
                   {data.health.primaryModel}
@@ -424,7 +424,7 @@ export function DeveloperDashboardClient({
             type="button"
             disabled={isRefreshing}
             onClick={() => void handleRefresh()}
-            className="btn-jet inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer"
+            className="btn-jet w-full sm:w-auto inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap rounded-xl sm:rounded-lg px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium cursor-pointer"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
@@ -451,7 +451,7 @@ export function DeveloperDashboardClient({
             {/* Level 1: Key figures strip (All latencies in seconds) */}
             <section
               dir="ltr"
-              className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8 border-y border-slate-200 py-8"
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-x-8 lg:gap-y-8 lg:border-y lg:border-slate-200 lg:py-8"
             >
               {[
                 {
@@ -489,17 +489,20 @@ export function DeveloperDashboardClient({
                   note: `${anom.errorsCount} ${isHe ? "שגיאות מערכת" : "system errors"} · ${anom.failedQueryLogsCount} ${isHe ? "קריאות שנכשלו" : "failed calls"}`,
                 },
               ].map((s) => (
-                <div key={s.label}>
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <span className={`h-2 w-2 rounded-full ${s.dot}`} />
-                    {s.label}
+                <div
+                  key={s.label}
+                  className="glass-panel lg:bg-transparent lg:backdrop-blur-none rounded-2xl lg:rounded-none border lg:border-0 p-3.5 sm:p-4 lg:p-0 min-w-0"
+                >
+                  <p className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 truncate">
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
+                    <span className="truncate">{s.label}</span>
                   </p>
                   <p
-                    className={`mt-1.5 text-2xl sm:text-3xl font-semibold tracking-tight font-mono ${s.valueColor}`}
+                    className={`mt-1.5 text-lg sm:text-3xl font-semibold tracking-tight font-mono truncate ${s.valueColor}`}
                   >
                     {s.value}
                   </p>
-                  <p className="mt-1.5 text-[11px] font-mono text-slate-400">
+                  <p className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-mono text-slate-400 leading-snug break-words">
                     {s.note}
                   </p>
                 </div>
@@ -838,10 +841,10 @@ export function DeveloperDashboardClient({
                   const resItem = actionResults[r.action];
                   return (
                     <div key={r.id} className="py-4 space-y-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                         <div
                           dir={isHe ? "rtl" : "ltr"}
-                          className="min-w-0 flex-1 basis-72"
+                          className="min-w-0 flex-1"
                         >
                           <p className="text-sm font-medium text-slate-900">
                             {r.title}
@@ -854,7 +857,7 @@ export function DeveloperDashboardClient({
                               </span>
                             )}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">
                             {r.desc}
                           </p>
                         </div>
@@ -863,7 +866,7 @@ export function DeveloperDashboardClient({
                           type="button"
                           disabled={pendingAction !== null}
                           onClick={() => void runRepair(r.action)}
-                          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer ${toneBtnClass[r.tone]}`}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl sm:rounded-lg border px-3.5 py-2 sm:py-1.5 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer ${toneBtnClass[r.tone]}`}
                         >
                           {pendingAction === r.action && (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -919,16 +922,85 @@ export function DeveloperDashboardClient({
               </div>
             </section>
 
-            {/* Level 2: Per-model table (Latency in seconds) */}
+            {/* Level 2: Per-model usage (Mobile cards < md, Desktop table >= md) */}
             <section className="space-y-4">
               <h2
                 dir={isHe ? "rtl" : "ltr"}
-                className="text-lg font-semibold tracking-tight text-slate-900"
+                className="text-base sm:text-lg font-semibold tracking-tight text-slate-900"
               >
                 {isHe ? "שימוש ועלויות לפי מודל" : "Usage & Cost by Model"}
               </h2>
+
+              {/* Phone-fitted Model Cards (< md) */}
+              <div className="md:hidden space-y-3" dir="ltr">
+                {data.models.map((m) => (
+                  <div
+                    key={`mobile-model-${m.model}`}
+                    className="glass-panel rounded-2xl border p-4 space-y-2.5 font-mono text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-900 truncate">
+                        {m.model}
+                      </span>
+                      <span className="font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-0.5 shrink-0">
+                        {formatUsd(m.costUsd)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50/90 border border-slate-200/70 p-2.5 text-[11px]">
+                      <div>
+                        <span className="block text-[10px] text-slate-400">
+                          Calls / Errors
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {m.calls}
+                        </span>{" "}
+                        /{" "}
+                        <span
+                          className={
+                            m.errors > 0
+                              ? "font-bold text-rose-600"
+                              : "text-slate-400"
+                          }
+                        >
+                          {m.errors}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-slate-400">
+                          Avg Latency
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {formatLatencySeconds(m.avgLatencyMs)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-slate-400">
+                          Input (cached)
+                        </span>
+                        <span className="text-slate-800">
+                          {m.promptTokens.toLocaleString()} (
+                          <span className="text-teal-700">
+                            {m.cachedTokens.toLocaleString()}
+                          </span>
+                          )
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-slate-400">
+                          Output
+                        </span>
+                        <span className="text-slate-800">
+                          {m.completionTokens.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= md) */}
               <div
-                className="overflow-x-auto border-t border-slate-200"
+                className="hidden md:block overflow-x-auto border-t border-slate-200"
                 dir="ltr"
               >
                 <table className="w-full text-xs font-mono">

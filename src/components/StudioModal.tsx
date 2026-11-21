@@ -304,55 +304,63 @@ export function StudioModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-md p-3 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-md p-0 sm:p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="animate-modal-in w-full max-w-3xl max-h-[90dvh] flex flex-col rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/75 shadow-[0_24px_60px_-14px_rgba(15,23,42,0.35)] overflow-hidden">
+      <div className="animate-sheet-up sm:animate-modal-in w-full max-w-3xl max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-white/95 backdrop-blur-2xl border-t sm:border border-white/75 shadow-[0_24px_60px_-14px_rgba(15,23,42,0.35)] overflow-hidden">
         {/* Top Bar */}
-        <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-[#0f172a]/92 backdrop-blur-xl text-white flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 shrink-0 border-b border-white/10">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-200 border border-teal-400/30">
-              {mode === "contradictions" ? (
-                <GitCompareArrows className="h-4.5 w-4.5" />
-              ) : mode === "brief" ? (
-                <FileText className="h-4.5 w-4.5" />
-              ) : (
-                <ClipboardCheck className="h-4.5 w-4.5" />
-              )}
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold truncate">{headerTitle}</h3>
-              <p className="text-[11px] text-[#c2dfe3] truncate">
-                {headerSubtitle}
-              </p>
-            </div>
+        <div className="px-4 sm:px-5 pt-2.5 pb-3.5 sm:py-4 bg-[#0f172a]/95 backdrop-blur-xl text-white shrink-0 border-b border-white/10">
+          <div className="sm:hidden flex justify-center mb-2">
+            <span className="h-1 w-10 rounded-full bg-white/25" />
           </div>
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <span className="inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-200 border border-teal-400/30">
+                {mode === "contradictions" ? (
+                  <GitCompareArrows className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                ) : mode === "brief" ? (
+                  <FileText className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                ) : (
+                  <ClipboardCheck className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold leading-snug line-clamp-2 sm:truncate">
+                  {headerTitle}
+                </h3>
+                <p className="hidden sm:block text-[11px] text-[#c2dfe3] truncate">
+                  {headerSubtitle}
+                </p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2 shrink-0 ms-auto">
-            {briefData && !isLoading && (
+            <div className="flex items-center gap-2 shrink-0 ms-auto">
+              {briefData && !isLoading && (
+                <button
+                  id="export-brief-pdf-btn"
+                  type="button"
+                  onClick={() => handleExportExecutiveBriefPdf(briefData)}
+                  className="interactive-chip inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl bg-[#e0fbfc] hover:bg-[#c2dfe3] px-3 py-1.5 text-xs font-semibold text-[#253237] cursor-pointer"
+                >
+                  <FileDown className="h-3.5 w-3.5 shrink-0" />
+                  <span>{isHe ? "ייצוא PDF" : "Export PDF"}</span>
+                </button>
+              )}
               <button
-                id="export-brief-pdf-btn"
                 type="button"
-                onClick={() => handleExportExecutiveBriefPdf(briefData)}
-                className="interactive-chip inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl bg-[#e0fbfc] hover:bg-[#c2dfe3] px-3 py-1.5 text-xs font-semibold text-[#253237] cursor-pointer"
+                onClick={onClose}
+                aria-label={isHe ? "סגור" : "Close"}
+                className="shrink-0 rounded-lg p-2 sm:p-1.5 text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <FileDown className="h-3.5 w-3.5 shrink-0" />
-                <span>{isHe ? "הורדה / הדפסת PDF" : "Export as PDF"}</span>
+                <X className="h-4 w-4" />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 rounded-lg p-1.5 text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            </div>
           </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 bg-[#f2fafb]">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 pb-safe-sheet sm:pb-5 space-y-4 sm:space-y-5 bg-[#f2fafb]">
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center gap-3 text-[#5c6b73]">
               <Loader2 className="h-7 w-7 animate-spin text-[#253237]" />

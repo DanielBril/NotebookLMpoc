@@ -354,17 +354,17 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
     <div className="min-h-screen flex flex-col glass-canvas">
       <Navbar mode="admin" user={user} />
 
-      <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">
+      <main className="flex-1 mx-auto w-full max-w-[1140px] px-3 sm:px-8 py-6 sm:py-10 space-y-8 sm:space-y-12">
         {/* Header: title + Export PDF + Refresh */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end justify-between gap-3 sm:gap-4">
           <div dir={isHe ? "rtl" : "ltr"} className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-3xl font-semibold tracking-tight text-slate-900">
               {t.admin.pageTitle}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">
               {t.admin.pageSubtitle}
               {data && (
-                <span className="font-mono text-xs text-slate-400" dir="ltr">
+                <span className="font-mono text-[11px] sm:text-xs text-slate-400" dir="ltr">
                   {" "}
                   ·{" "}
                   {new Date(data.generatedAt).toLocaleTimeString(
@@ -374,7 +374,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
               )}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
             {pdfReportData && (
               <button
                 id="admin-export-pdf-btn"
@@ -387,7 +387,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                     isHe ? "he" : "en"
                   )
                 }
-                className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3.5 py-2 text-xs sm:text-sm font-medium text-blue-900 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl sm:rounded-lg border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3 sm:px-3.5 py-2.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-900 cursor-pointer"
               >
                 <FileDown className="h-3.5 w-3.5 shrink-0" />
                 <span>{isHe ? "ייצוא PDF" : "Export PDF"}</span>
@@ -398,7 +398,9 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
               type="button"
               disabled={isRefreshing}
               onClick={() => void handleManualRefresh()}
-              className="btn-jet inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer"
+              className={`btn-jet inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap rounded-xl sm:rounded-lg px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium cursor-pointer ${
+                !pdfReportData ? "col-span-2" : ""
+              }`}
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
@@ -411,7 +413,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
         {/* Privacy notice: calm Blue info callout */}
         <p
           dir={isHe ? "rtl" : "ltr"}
-          className="text-xs leading-relaxed text-slate-600 bg-blue-50/60 border border-blue-200/70 border-s-4 border-s-blue-600 rounded-lg px-4 py-3 max-w-3xl"
+          className="text-xs leading-relaxed text-slate-600 bg-blue-50/60 border border-blue-200/70 border-s-4 border-s-blue-600 rounded-xl sm:rounded-lg px-3.5 sm:px-4 py-3 max-w-3xl"
         >
           <strong className="font-semibold text-blue-950">
             {t.admin.privacyBannerTitle}
@@ -435,12 +437,12 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
             <KpiGrid kpis={data.kpis} />
 
             {/* Global Active LLM Model Switcher (moved to Admin Portal) */}
-            <section className="glass-panel rounded-2xl border p-5 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.1)] space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <section className="glass-panel rounded-2xl border p-4 sm:p-5 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.1)] space-y-3">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3.5 sm:gap-4">
                 <div dir={isHe ? "rtl" : "ltr"} className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Cpu className="h-4.5 w-4.5 text-teal-600 shrink-0" />
-                    <h2 className="text-base font-semibold text-slate-900">
+                    <h2 className="text-sm sm:text-base font-semibold text-slate-900">
                       {isHe
                         ? "מודל AI פעיל לכל המשתמשים"
                         : "Global Active LLM Model (All Users)"}
@@ -452,7 +454,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                       {data.modelConfig.primaryModel}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">
                     {isHe
                       ? "שינוי המודל כאן מתעדכן מיידית בבסיס הנתונים ומשפיע על כל המשתמשים באתר."
                       : "Switching the model here persists globally and immediately applies to Q&A chat and Studio tools for every user."}
@@ -473,7 +475,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto">
                   <select
                     id="global-model-select"
                     value={selectedModel || data.modelConfig.primaryModel}
@@ -482,7 +484,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                       setModelResult(null);
                     }}
                     dir="ltr"
-                    className="flex-1 sm:flex-none min-w-[210px] max-w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40 cursor-pointer"
+                    className="w-full sm:w-auto sm:min-w-[230px] max-w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:py-2 text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40 cursor-pointer"
                   >
                     {data.modelConfig.availableModels.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -500,7 +502,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                       selectedModel === data.modelConfig.primaryModel
                     }
                     onClick={() => void handleSaveGlobalModel()}
-                    className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer"
+                    className="btn-jet w-full sm:w-auto inline-flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-2.5 sm:py-2 text-xs font-semibold cursor-pointer"
                   >
                     {isSavingModel && (
                       <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -570,9 +572,9 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
             )}
 
             {/* Flagged Dangerous Texts Only Feed */}
-            <section className="space-y-4">
+            <section className="space-y-3 sm:space-y-4">
               <div dir={isHe ? "rtl" : "ltr"}>
-                <h2 className="text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-semibold tracking-tight text-slate-900 flex flex-wrap items-center gap-2">
                   <span>{t.admin.dangerousFeedTitle}</span>
                   <span
                     className={`rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${
@@ -586,7 +588,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                     )}
                   </span>
                 </h2>
-                <p className="text-sm text-slate-500 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   {t.admin.dangerousFeedSubtitle}
                 </p>
               </div>
@@ -614,12 +616,12 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                     return (
                       <div
                         key={ev.id}
-                        className="py-4 flex flex-wrap items-start justify-between gap-4"
+                        className="py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4"
                       >
-                        <div className="min-w-0 flex-1 basis-80 space-y-1.5">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <p
                             dir="ltr"
-                            className="font-mono text-[11px] text-slate-500"
+                            className="font-mono text-[11px] text-slate-500 break-words"
                           >
                             <span className="font-semibold text-slate-900">
                               @{ev.username}
@@ -632,11 +634,11 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                           </p>
                           <p
                             dir="auto"
-                            className="rounded bg-rose-50/70 border border-rose-200/70 px-3 py-1.5 text-sm font-mono text-rose-950 break-words"
+                            className="rounded-lg bg-rose-50/70 border border-rose-200/70 px-3 py-2 text-xs sm:text-sm font-mono text-rose-950 break-words"
                           >
                             {ev.flaggedText}
                           </p>
-                          <p className="text-xs text-rose-700 font-medium">
+                          <p className="text-xs text-rose-700 font-medium break-words">
                             {ev.ruleReason}
                           </p>
                         </div>
@@ -656,7 +658,7 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                                   ev.ruleReason
                                 )
                               }
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white hover:border-rose-600 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40 transition-colors cursor-pointer"
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl sm:rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white hover:border-rose-600 px-3.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40 transition-colors cursor-pointer"
                             >
                               {isBusy && (
                                 <Loader2 className="h-3 w-3 animate-spin" />

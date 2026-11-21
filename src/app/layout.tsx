@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Heebo, Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
@@ -21,10 +21,17 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0f172a",
+};
+
 export const metadata: Metadata = {
   title: "ContextLM — מענה חכם ומבוסס ממסמכים",
   description:
-    "העלו עד 10 מסמכים ושאלו שאלות מבוססות מקורות בלבד עם הפניות ישירות, תגובה מהירה בזמן אמת והגנת 4 שכבות מפני הזרקת פרומפטים.",
+    "העלו עד 100 מסמכים ושאלו שאלות מבוססות מקורות בלבד עם הפניות ישירות, תגובה מהירה בזמן אמת והגנת 4 שכבות מפני הזרקת פרומפטים.",
 };
 
 export default function RootLayout({

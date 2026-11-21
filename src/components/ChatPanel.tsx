@@ -16,12 +16,14 @@ import {
   ChevronDown,
   ClipboardCheck,
   FileText,
+  FolderOpen,
   GitCompareArrows,
   Loader2,
   Play,
   ShieldAlert,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import type { SourceDocumentItem } from "@/components/SourcesSidebar";
 import type { StudioMode } from "@/app/api/studio/route";
@@ -67,6 +69,7 @@ interface ChatPanelProps {
   onClearChat: () => Promise<void>;
   onCitationClick: (citation: CitationItem) => void;
   onOpenStudio: (mode: StudioMode) => void;
+  onOpenSources?: () => void;
 }
 
 const MAX_QUERY_CHARS = 2000;
@@ -189,6 +192,7 @@ export function ChatPanel({
   onClearChat,
   onCitationClick,
   onOpenStudio,
+  onOpenSources,
 }: ChatPanelProps) {
   const { lang, t } = useLanguage();
   const isHe = lang === "he";
@@ -270,15 +274,15 @@ export function ChatPanel({
   return (
     <section className="flex-1 flex flex-col min-w-0 h-full bg-transparent">
       {/* Level 1 (Primary Focus): Editorial Glassy Q&A Stream */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-8 py-4 sm:py-8">
         <div className="mx-auto max-w-3xl">
           {messages.length === 0 ? (
             <div
               dir={isHe ? "rtl" : "ltr"}
-              className="py-10 sm:py-16 space-y-8 animate-fade-in-up"
+              className="py-4 sm:py-16 space-y-6 sm:space-y-8 animate-fade-in-up"
             >
-              <div className="glass-panel rounded-3xl border p-7 sm:p-9 shadow-[0_14px_40px_-18px_rgba(15,23,42,0.12)] space-y-3">
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+              <div className="glass-panel rounded-2xl sm:rounded-3xl border p-5 sm:p-9 shadow-[0_14px_40px_-18px_rgba(15,23,42,0.12)] space-y-3">
+                <h2 className="text-xl sm:text-3xl font-semibold tracking-tight text-slate-900">
                   {totalDocumentsCount === 0
                     ? t.chat.emptyTitleNoDocs
                     : activeDocuments.length === 0
@@ -293,8 +297,30 @@ export function ChatPanel({
                       : t.chat.emptyDescReady}
                 </p>
 
+                {/* Mobile quick-access CTA to open/upload sources */}
+                {onOpenSources && (
+                  <div className="pt-1 lg:hidden">
+                    <button
+                      type="button"
+                      onClick={onOpenSources}
+                      className="btn-jet inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer"
+                    >
+                      <FolderOpen className="h-4 w-4 shrink-0" />
+                      <span>
+                        {totalDocumentsCount === 0
+                          ? isHe
+                            ? "העלאת מקורות ראשונים"
+                            : "Upload Your First Sources"
+                          : isHe
+                            ? `ניהול מקורות (${totalDocumentsCount})`
+                            : `Manage Sources (${totalDocumentsCount})`}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
                 {starterChips.length > 0 && (
-                  <div className="space-y-2 border-t border-slate-200/70 pt-5 mt-5">
+                  <div className="space-y-2 border-t border-slate-200/70 pt-4 sm:pt-5 mt-4 sm:mt-5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                       {t.chat.suggestedHeading}
                     </p>
@@ -305,9 +331,11 @@ export function ChatPanel({
                           type="button"
                           disabled={isSending}
                           onClick={() => void onSendQuery(chip)}
-                          className="w-full py-3 px-2.5 rounded-xl text-start text-sm text-slate-800 hover:text-teal-700 hover:bg-white/70 flex items-center justify-between gap-4 cursor-pointer group min-w-0"
+                          className="w-full py-3 px-2 sm:px-2.5 rounded-xl text-start text-sm text-slate-800 hover:text-teal-700 hover:bg-white/70 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer group min-w-0"
                         >
-                          <span className="truncate min-w-0">{chip}</span>
+                          <span className="line-clamp-2 sm:truncate leading-snug min-w-0">
+                            {chip}
+                          </span>
                           <span className="text-xs font-mono text-slate-400 group-hover:text-teal-600 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5">
                             {isHe ? "←" : "→"}
                           </span>
@@ -319,7 +347,7 @@ export function ChatPanel({
               </div>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-3.5 sm:space-y-5">
               {messages.map((msg, index) => {
                 // User Question — Sleek glassy bubble
                 if (msg.role === "user") {
@@ -328,10 +356,10 @@ export function ChatPanel({
                       key={msg.id}
                       className="animate-message-in flex justify-end"
                     >
-                      <div className="max-w-[85%] rounded-2xl rounded-ee-sm bg-teal-600/12 backdrop-blur-md border border-teal-500/25 px-4 py-3 shadow-[0_6px_20px_-10px_rgba(13,148,136,0.25)]">
+                      <div className="max-w-[90%] sm:max-w-[85%] rounded-2xl rounded-ee-sm bg-teal-600/12 backdrop-blur-md border border-teal-500/25 px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-[0_6px_20px_-10px_rgba(13,148,136,0.25)]">
                         <div
                           dir="auto"
-                          className="text-[15px] font-medium leading-relaxed text-slate-900 whitespace-pre-wrap break-words"
+                          className="text-sm sm:text-[15px] font-medium leading-relaxed text-slate-900 whitespace-pre-wrap break-words"
                         >
                           {msg.content}
                         </div>
@@ -346,7 +374,7 @@ export function ChatPanel({
                     <div key={msg.id} className="animate-message-in">
                       <div
                         dir={isHe ? "rtl" : "ltr"}
-                        className="rounded-2xl bg-rose-50/85 backdrop-blur-md border border-rose-200/80 border-s-4 border-s-rose-600 px-5 py-4 text-sm text-rose-950 shadow-[0_8px_24px_-12px_rgba(225,29,72,0.18)]"
+                        className="rounded-2xl bg-rose-50/85 backdrop-blur-md border border-rose-200/80 border-s-4 border-s-rose-600 px-4 py-3.5 sm:px-5 sm:py-4 text-sm text-rose-950 shadow-[0_8px_24px_-12px_rgba(225,29,72,0.18)]"
                       >
                         <div className="flex items-start gap-2.5">
                           <ShieldAlert className="h-4 w-4 mt-0.5 text-rose-600 shrink-0" />
@@ -388,7 +416,7 @@ export function ChatPanel({
                 return (
                   <div
                     key={msg.id}
-                    className="animate-message-in glass-panel rounded-2xl border p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.09)] min-w-0"
+                    className="animate-message-in glass-panel rounded-2xl border p-4 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.09)] min-w-0"
                   >
                     {msg.content ? (
                       <>
@@ -498,10 +526,10 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Bottom Floating Glassy Input Composer Dock */}
-      <div className="px-3 sm:px-8 pb-4 sm:pb-5 pt-2 shrink-0">
+      {/* Bottom Floating Glassy Input Composer Dock (Phone-fitted with safe-area padding) */}
+      <div className="px-2.5 sm:px-8 pb-safe sm:pb-5 pt-1.5 sm:pt-2 shrink-0">
         <div className="mx-auto max-w-3xl relative">
-          <div className="glass-dock rounded-2xl border border-white/80 ring-1 ring-slate-900/10 focus-within:ring-2 focus-within:ring-teal-500/45 transition-all px-3.5 sm:px-4 py-3">
+          <div className="glass-dock rounded-2xl border border-white/80 ring-1 ring-slate-900/10 focus-within:ring-2 focus-within:ring-teal-500/45 transition-all px-3 sm:px-4 py-2.5 sm:py-3">
             <textarea
               ref={textareaRef}
               id="chat-query-input"
@@ -520,11 +548,11 @@ export function ChatPanel({
                   ? t.chat.inputPlaceholderActive
                   : t.chat.inputPlaceholderEmpty
               }
-              className="w-full resize-none bg-transparent py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none max-h-40"
+              className="w-full resize-none bg-transparent py-1 text-[16px] sm:text-sm leading-snug text-slate-900 placeholder:text-slate-400 focus:outline-none max-h-36 sm:max-h-40"
             />
 
-            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-200/70">
-              {/* Left side: More Actions Dropdown + Clear Chat */}
+            <div className="mt-2 sm:mt-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 pt-2 sm:pt-2.5 border-t border-slate-200/70">
+              {/* Left side: More Actions + Clear Chat */}
               <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                 <div ref={actionsMenuRef} className="relative">
                   <button
@@ -538,10 +566,10 @@ export function ChatPanel({
                         return next;
                       });
                     }}
-                    className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold border cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-2.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold border cursor-pointer ${
                       actionsOpen
                         ? "bg-teal-50 text-teal-800 border-teal-300"
-                        : "bg-white/80 text-slate-700 border-slate-200/90 hover:bg-white hover:border-teal-300 hover:text-teal-800"
+                        : "bg-white/85 text-slate-700 border-slate-200/90 hover:bg-white hover:border-teal-300 hover:text-teal-800"
                     }`}
                   >
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-teal-600" />
@@ -553,119 +581,147 @@ export function ChatPanel({
                     />
                   </button>
 
-                  {/* Glassy Popover Dropdown with Description + Explicit Start Button */}
+                  {/* Mobile Backdrop + Native Bottom Sheet (< sm) / Anchored Glass Popover (>= sm, always left-0 so RTL never clips offscreen) */}
                   {actionsOpen && (
-                    <div
-                      dir={isHe ? "rtl" : "ltr"}
-                      className="animate-popover-in glass-popover absolute bottom-full start-0 mb-2.5 w-[min(340px,calc(100vw-2.5rem))] max-w-[calc(100vw-2.5rem)] rounded-2xl p-2 z-40"
-                    >
-                      {!selectedAction ? (
-                        <div className="space-y-1">
-                          <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                            {isHe
-                              ? "בחרו כלי מתקדם למסמכים"
-                              : "Choose a document tool"}
-                          </p>
-                          {STUDIO_ACTIONS.map((opt) => (
-                            <button
-                              key={opt.mode}
-                              id={`studio-option-${opt.mode}`}
-                              type="button"
-                              onClick={() => setSelectedAction(opt)}
-                              className="w-full rounded-xl p-2.5 text-start hover:bg-slate-900/5 flex items-start gap-3 cursor-pointer group"
-                            >
-                              <span
-                                className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${opt.accentBg} ${opt.accentText} ${opt.accentBorder}`}
-                              >
-                                {renderActionIcon(opt.mode)}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-xs font-semibold text-slate-900 group-hover:text-teal-800">
-                                  {isHe ? opt.titleHe : opt.titleEn}
-                                </span>
-                                <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">
-                                  {isHe ? opt.shortHe : opt.shortEn}
-                                </span>
-                              </span>
-                            </button>
-                          ))}
+                    <>
+                      <div
+                        aria-hidden="true"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          setSelectedAction(null);
+                        }}
+                        className="fixed inset-0 z-40 bg-slate-900/35 backdrop-blur-[2px] sm:hidden animate-fade-in"
+                      />
+                      <div
+                        dir={isHe ? "rtl" : "ltr"}
+                        className="glass-popover fixed inset-x-0 bottom-0 z-50 w-full max-h-[82dvh] overflow-y-auto rounded-t-3xl px-4 pt-3 pb-safe-sheet animate-sheet-up sm:animate-popover-in sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2.5 sm:w-[340px] sm:max-w-[calc(100vw-2rem)] sm:max-h-none sm:overflow-visible sm:rounded-2xl sm:p-2"
+                      >
+                        {/* Mobile sheet grabber + header close button */}
+                        <div className="sm:hidden mb-2 flex flex-col items-center">
+                          <span className="h-1 w-10 rounded-full bg-slate-300/90 mb-2" />
                         </div>
-                      ) : (
-                        <div className="p-2 space-y-3 animate-fade-in">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedAction(null)}
-                              className="inline-flex items-center gap-1 shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
-                            >
-                              {isHe ? (
-                                <ArrowRight className="h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowLeft className="h-3.5 w-3.5" />
-                              )}
-                              <span>{isHe ? "חזרה" : "Back"}</span>
-                            </button>
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${selectedAction.accentBg} ${selectedAction.accentText} ${selectedAction.accentBorder}`}
-                            >
-                              {renderActionIcon(
-                                selectedAction.mode,
-                                "h-3 w-3"
-                              )}
-                              {isHe
-                                ? selectedAction.titleHe
-                                : selectedAction.titleEn}
-                            </span>
-                          </div>
 
-                          <p className="text-xs leading-relaxed text-slate-600 px-1">
-                            {isHe
-                              ? selectedAction.descHe
-                              : selectedAction.descEn}
-                          </p>
-
-                          {activeDocuments.length === 0 && (
-                            <p className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2 text-[11px] text-amber-800">
-                              {isHe
-                                ? "יש להעלות ולסמן לפחות מקור אחד כדי להפעיל פעולה זו."
-                                : "Upload and select at least one source to run this tool."}
-                            </p>
-                          )}
-
-                          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedAction(null);
-                                setActionsOpen(false);
-                              }}
-                              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
-                            >
-                              {isHe ? "ביטול" : "Cancel"}
-                            </button>
-                            <button
-                              id={`studio-start-${selectedAction.mode}-btn`}
-                              type="button"
-                              disabled={activeDocuments.length === 0}
-                              onClick={() => {
-                                const modeToRun = selectedAction.mode;
-                                setSelectedAction(null);
-                                setActionsOpen(false);
-                                onOpenStudio(modeToRun);
-                              }}
-                              className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
-                            >
-                              <Play className="h-3 w-3 fill-current shrink-0" />
-                              <span>
+                        {!selectedAction ? (
+                          <div className="space-y-1.5 sm:space-y-1">
+                            <div className="flex items-center justify-between gap-2 px-1 sm:px-2.5 pt-0.5 sm:pt-1.5 pb-1">
+                              <p className="text-xs sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 sm:text-slate-400">
                                 {isHe
-                                  ? selectedAction.startHe
-                                  : selectedAction.startEn}
-                              </span>
-                            </button>
+                                  ? "בחרו כלי מתקדם למסמכים"
+                                  : "Choose a document tool"}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionsOpen(false);
+                                  setSelectedAction(null);
+                                }}
+                                aria-label={isHe ? "סגור" : "Close"}
+                                className="sm:hidden rounded-lg p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            {STUDIO_ACTIONS.map((opt) => (
+                              <button
+                                key={opt.mode}
+                                id={`studio-option-${opt.mode}`}
+                                type="button"
+                                onClick={() => setSelectedAction(opt)}
+                                className="w-full rounded-2xl sm:rounded-xl p-3 sm:p-2.5 text-start bg-white/70 sm:bg-transparent border border-slate-200/70 sm:border-transparent hover:bg-slate-900/5 flex items-start gap-3 cursor-pointer group"
+                              >
+                                <span
+                                  className={`mt-0.5 inline-flex h-9 w-9 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl sm:rounded-lg border ${opt.accentBg} ${opt.accentText} ${opt.accentBorder}`}
+                                >
+                                  {renderActionIcon(opt.mode)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm sm:text-xs font-semibold text-slate-900 group-hover:text-teal-800">
+                                    {isHe ? opt.titleHe : opt.titleEn}
+                                  </span>
+                                  <span className="block text-xs sm:text-[11px] text-slate-500 mt-0.5 leading-snug">
+                                    {isHe ? opt.shortHe : opt.shortEn}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        ) : (
+                          <div className="p-1 sm:p-2 space-y-3.5 sm:space-y-3 animate-fade-in">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedAction(null)}
+                                className="inline-flex items-center gap-1 shrink-0 rounded-lg px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                              >
+                                {isHe ? (
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ArrowLeft className="h-3.5 w-3.5" />
+                                )}
+                                <span>{isHe ? "חזרה" : "Back"}</span>
+                              </button>
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 sm:px-2 sm:py-0.5 text-xs sm:text-[11px] font-semibold ${selectedAction.accentBg} ${selectedAction.accentText} ${selectedAction.accentBorder}`}
+                              >
+                                {renderActionIcon(
+                                  selectedAction.mode,
+                                  "h-3.5 w-3.5 sm:h-3 sm:w-3"
+                                )}
+                                {isHe
+                                  ? selectedAction.titleHe
+                                  : selectedAction.titleEn}
+                              </span>
+                            </div>
+
+                            <p className="text-sm sm:text-xs leading-relaxed text-slate-600 px-1">
+                              {isHe
+                                ? selectedAction.descHe
+                                : selectedAction.descEn}
+                            </p>
+
+                            {activeDocuments.length === 0 && (
+                              <p className="rounded-xl sm:rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 sm:px-2.5 sm:py-2 text-xs sm:text-[11px] text-amber-800">
+                                {isHe
+                                  ? "יש להעלות ולסמן לפחות מקור אחד כדי להפעיל פעולה זו."
+                                  : "Upload and select at least one source to run this tool."}
+                              </p>
+                            )}
+
+                            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAction(null);
+                                  setActionsOpen(false);
+                                }}
+                                className="w-full sm:w-auto shrink-0 rounded-xl sm:rounded-lg border border-slate-200 sm:border-transparent px-3.5 py-2.5 sm:px-3 sm:py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                              >
+                                {isHe ? "ביטול" : "Cancel"}
+                              </button>
+                              <button
+                                id={`studio-start-${selectedAction.mode}-btn`}
+                                type="button"
+                                disabled={activeDocuments.length === 0}
+                                onClick={() => {
+                                  const modeToRun = selectedAction.mode;
+                                  setSelectedAction(null);
+                                  setActionsOpen(false);
+                                  onOpenStudio(modeToRun);
+                                }}
+                                className="btn-jet w-full sm:w-auto inline-flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl sm:rounded-lg px-4 py-2.5 sm:px-3.5 sm:py-1.5 text-xs font-semibold cursor-pointer"
+                              >
+                                <Play className="h-3.5 w-3.5 sm:h-3 sm:w-3 fill-current shrink-0" />
+                                <span>
+                                  {isHe
+                                    ? selectedAction.startHe
+                                    : selectedAction.startEn}
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -676,10 +732,13 @@ export function ChatPanel({
                     type="button"
                     disabled={isSending}
                     onClick={() => void onClearChat()}
-                    className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-700 hover:bg-rose-50/90 border border-transparent hover:border-rose-200/80 disabled:opacity-35 cursor-pointer"
+                    title={t.chat.clearChat}
+                    className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 sm:py-1.5 text-xs font-medium text-slate-500 hover:text-rose-700 hover:bg-rose-50/90 border border-transparent hover:border-rose-200/80 disabled:opacity-35 cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>{t.chat.clearChat}</span>
+                    <span className="hidden min-[390px]:inline">
+                      {t.chat.clearChat}
+                    </span>
                   </button>
                 )}
               </div>
@@ -699,7 +758,7 @@ export function ChatPanel({
                   type="button"
                   disabled={isSending || !input.trim()}
                   onClick={() => void submitCurrent()}
-                  className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-semibold cursor-pointer"
+                  className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-2 sm:py-1.5 text-xs font-semibold cursor-pointer"
                 >
                   {isSending ? (
                     <>

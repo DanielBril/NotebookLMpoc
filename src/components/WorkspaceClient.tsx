@@ -86,7 +86,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [deletingCount, setDeletingCount] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
   const [toastWarning, setToastWarning] = useState<string | null>(null);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
@@ -102,6 +102,18 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     data: ContradictionsResult | ExecutiveBriefResult | AuditQuizResult | null;
     sourceIdByIndex: Record<number, string>;
   } | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = (matches: boolean) => setSidebarOpen(matches);
+    const handleChange = (e: MediaQueryListEvent) => sync(e.matches);
+    mq.addEventListener("change", handleChange);
+    const rafId = window.requestAnimationFrame(() => sync(mq.matches));
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      mq.removeEventListener("change", handleChange);
+    };
+  }, []);
 
   const activeDocuments = useMemo(
     () => documents.filter((d) => d.isSelected),
@@ -700,6 +712,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
             })
           }
           onOpenStudio={(mode) => void handleOpenStudio(mode)}
+          onOpenSources={() => setSidebarOpen(true)}
         />
 
         {/* Mobile glass backdrop when sidebar is open */}

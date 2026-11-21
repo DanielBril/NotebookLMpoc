@@ -439,24 +439,24 @@ export function SourcesSidebar({
                         </button>
                       </>
                     ) : (
-                      <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 sm:gap-0.5 opacity-95 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={() =>
                             onOpenPreview(doc.id, doc.previewSnippet)
                           }
                           title={t.sources.previewTitle}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
+                          className="rounded-lg p-2 sm:p-1.5 text-slate-500 sm:text-slate-400 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5" />
+                          <Eye className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(doc.id)}
                           title={t.sources.deleteTitle}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          className="rounded-lg p-2 sm:p-1.5 text-slate-500 sm:text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         </button>
                       </div>
                     )}
@@ -470,8 +470,8 @@ export function SourcesSidebar({
 
       {/* Quick Snippet & Verify-Claim Preview Drawer */}
       {previewDoc && (
-        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[68%] flex flex-col bg-white/88 backdrop-blur-2xl border-t border-white/80 shadow-[0_-14px_38px_-10px_rgba(15,23,42,0.16)]">
-          <div className="flex items-center justify-between gap-2 bg-white/60 px-5 py-3 border-b border-slate-200/70">
+        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[72%] sm:max-h-[68%] flex flex-col bg-white/92 backdrop-blur-2xl border-t border-white/80 shadow-[0_-14px_38px_-10px_rgba(15,23,42,0.16)] pb-safe">
+          <div className="flex items-center justify-between gap-2 bg-white/60 px-4 sm:px-5 py-3 border-b border-slate-200/70">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">

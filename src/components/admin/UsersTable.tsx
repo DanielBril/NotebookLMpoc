@@ -157,9 +157,9 @@ export function UsersTable({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             {/* Status Filter Tabs */}
-            <div className="inline-flex items-center gap-1 text-xs">
+            <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 rounded-xl sm:rounded-none bg-white/70 sm:bg-transparent p-1 sm:p-0 border border-slate-200/80 sm:border-0 text-xs">
               {(["all", "active", "blocked"] as const).map((tab) => {
                 const active = statusFilter === tab;
                 const label =
@@ -173,7 +173,7 @@ export function UsersTable({
                     key={tab}
                     type="button"
                     onClick={() => setStatusFilter(tab)}
-                    className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
+                    className={`rounded-lg sm:rounded-md px-2.5 py-1.5 sm:py-1 text-center transition-colors cursor-pointer ${
                       active
                         ? "bg-teal-600 text-white font-semibold"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -194,13 +194,201 @@ export function UsersTable({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t.admin.searchPlaceholder}
-                className="w-full rounded-lg bg-slate-50 ps-8 pe-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:border-teal-600 focus:bg-white transition-colors"
+                className="w-full rounded-xl sm:rounded-lg bg-white sm:bg-slate-50 ps-8 pe-3 py-2 sm:py-1.5 text-[16px] sm:text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:border-teal-600 focus:bg-white transition-colors"
               />
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto border-t border-slate-200">
+        {/* Phone-Fitted User Cards (< md) */}
+        <div className="md:hidden space-y-3 border-t border-slate-200 pt-3">
+          {filteredAndSorted.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">
+              {t.admin.noMatchingUsers}
+            </p>
+          ) : (
+            filteredAndSorted.map((u) => {
+              const isSelfOrAdmin =
+                u.role === "ADMIN" ||
+                u.role === "DEVELOPER" ||
+                u.id === currentAdminId;
+              const isBusy = pendingBlockUserId === u.id;
+              return (
+                <div
+                  key={`mobile-${u.id}`}
+                  className={`glass-panel rounded-2xl border p-4 space-y-3 ${
+                    u.isBlocked ? "border-rose-200 bg-rose-50/40" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-semibold text-slate-900 truncate">
+                          {u.name}
+                        </span>
+                        {u.role === "ADMIN" && (
+                          <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-teal-800 shrink-0">
+                            {isHe ? "מנהל" : "ADMIN"}
+                          </span>
+                        )}
+                        {u.role === "DEVELOPER" && (
+                          <span className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-indigo-800 shrink-0">
+                            {isHe ? "מפתח" : "DEVELOPER"}
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className="mt-0.5 text-[11px] font-mono text-slate-400 truncate"
+                        dir="ltr"
+                      >
+                        @{u.username} ·{" "}
+                        {u.provider === "google"
+                          ? t.admin.providerGoogle
+                          : t.admin.providerCredentials}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {u.isBlocked ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          {t.admin.statusBlocked}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {t.admin.statusActive}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {u.isBlocked && u.blockedReason && (
+                    <p className="rounded-lg bg-rose-50 border border-rose-200/70 px-2.5 py-1.5 text-[11px] text-rose-700 break-words">
+                      {u.blockedReason}
+                    </p>
+                  )}
+
+                  {/* Clean 2x2 Metrics Grid */}
+                  <div
+                    dir="ltr"
+                    className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50/90 border border-slate-200/70 p-2.5 text-[11px] font-mono"
+                  >
+                    <div>
+                      <span className="block text-[10px] text-slate-400">
+                        {t.admin.colFiles}
+                      </span>
+                      <span className="font-semibold text-slate-900">
+                        {u.activeFiles}/{MAX_FILES_PER_USER}
+                      </span>{" "}
+                      <span className="text-slate-400">({u.totalFiles})</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-slate-400">
+                        {t.admin.colQueries}
+                      </span>
+                      <span className="font-semibold text-slate-900">
+                        {u.validQueries}
+                      </span>
+                      {u.dangerousFlags > 0 && (
+                        <span className="ms-1 font-bold text-rose-600">
+                          ({u.dangerousFlags}!)
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-slate-400">
+                        {t.admin.colTotalTok}
+                      </span>
+                      <span className="font-semibold text-slate-900">
+                        {u.totalTokens.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-slate-400">
+                        {t.admin.colEstCost}
+                      </span>
+                      <span className="font-semibold text-slate-900">
+                        {formatUsd(u.estimatedCostUsd)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Full-width mobile action footer */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {formatRelativeTime(u.lastActiveAt, t)}
+                    </span>
+                    {isSelfOrAdmin ? (
+                      <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500">
+                        {u.role === "DEVELOPER"
+                          ? isHe
+                            ? "חשבון מפתח מוגן"
+                            : "Protected Developer"
+                          : isHe
+                            ? "חשבון מנהל מוגן"
+                            : "Protected Admin"}
+                      </span>
+                    ) : u.isBlocked ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isBusy || pendingDeleteUserId === u.id}
+                          onClick={() => void onToggleBlockUser(u.id, false)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-600 hover:text-white px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-40 cursor-pointer"
+                        >
+                          {isBusy ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3 w-3" />
+                          )}
+                          <span>
+                            {isBusy
+                              ? t.admin.unblocking
+                              : isHe
+                                ? "שחזר"
+                                : "Restore"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy || pendingDeleteUserId === u.id}
+                          onClick={() => setDeleteModalUser(u)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40 cursor-pointer"
+                        >
+                          {pendingDeleteUserId === u.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                          <span>{isHe ? "מחק לצמיתות" : "Delete Data"}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => {
+                          setBlockModalUser(u);
+                          setBlockReason("");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white px-3.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40 cursor-pointer"
+                      >
+                        {isBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+                        <span>
+                          {isBusy ? t.admin.blocking : t.admin.blockBtn}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Sortable Table (>= md) */}
+        <div className="hidden md:block overflow-x-auto border-t border-slate-200">
           <table className="w-full text-start border-collapse text-xs">
             <thead>
               <tr className="text-[11px] font-medium text-slate-500 border-b border-slate-200">

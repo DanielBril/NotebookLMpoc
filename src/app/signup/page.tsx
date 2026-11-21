@@ -98,29 +98,31 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen flex bg-slate-50">
+    <main className="min-h-dvh flex bg-slate-50">
       <AuthShowcasePane />
 
-      <section className="relative flex-1 flex flex-col justify-center items-center px-6 py-10 sm:px-10">
-        {/* Top-End Language Switcher */}
-        <div className="absolute top-5 end-5 sm:top-6 sm:end-6 z-20">
-          <LanguageToggle variant="light" id="signup-lang-toggle" />
+      <section className="relative flex-1 flex flex-col justify-center items-center px-4 py-6 sm:px-10 sm:py-10">
+        {/* Desktop Top-End Language Switcher */}
+        <div className="hidden lg:block absolute top-6 end-6 z-20">
+          <LanguageToggle variant="light" id="signup-lang-toggle-desktop" />
         </div>
 
-        <div className="w-full max-w-[430px]">
-          <div className="mb-8 lg:hidden">
-            <BrandLogo size={32} variant="dark" showSubtitle />
+        <div className="w-full max-w-[420px]">
+          {/* Mobile Header: BrandLogo + LanguageToggle cleanly aligned */}
+          <div className="mb-5 flex items-center justify-between gap-3 lg:hidden">
+            <BrandLogo size={28} variant="dark" showSubtitle />
+            <LanguageToggle variant="light" id="signup-lang-toggle" />
           </div>
 
           <div
             dir={isHe ? "rtl" : "ltr"}
-            className="rounded-2xl bg-white p-7 sm:p-8 border border-slate-200 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.1)]"
+            className="rounded-2xl bg-white p-5 sm:p-8 border border-slate-200 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.1)]"
           >
-            <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+            <div className="mb-5 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
                 {t.auth.signupTitle}
               </h2>
-              <p className="mt-1.5 text-sm text-slate-500">
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
                 {t.auth.signupSubtitle}
               </p>
             </div>
@@ -155,7 +157,7 @@ export default function SignupPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder={t.auth.usernameSignupPlaceholder}
-                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-[16px] sm:text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -178,7 +180,7 @@ export default function SignupPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t.auth.displayNamePlaceholder}
-                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-[16px] sm:text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -201,7 +203,7 @@ export default function SignupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t.auth.passwordMinPlaceholder}
-                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-[16px] sm:text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
@@ -224,7 +226,7 @@ export default function SignupPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t.auth.confirmPasswordPlaceholder}
-                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
+                    className="w-full rounded-xl bg-[#f2fafb] ps-9 pe-3.5 py-2.5 text-[16px] sm:text-sm text-[#253237] placeholder:text-[#5c6b73]/60 border border-[#9db4c0]/55 focus:outline-none focus:border-[#253237] focus:bg-white focus:ring-2 focus:ring-[#c2dfe3]/60 transition-all"
                   />
                 </div>
               </div>
