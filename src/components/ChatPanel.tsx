@@ -104,8 +104,12 @@ function generateStarterQuestions(
 function checkNoContextRefusal(content: string): boolean {
   return (
     content.includes("לא הצלחתי למצוא תשובה לשאלה זו במקורות שהעליתם") ||
+    content.includes("לצערנו, לא נמצאה תשובה לשאלה זו במקורות שהעליתם") ||
     content.includes(
       "I could not find the answer to that question in your uploaded sources"
+    ) ||
+    content.includes(
+      "Unfortunately, the answer could not be found in your uploaded sources"
     )
   );
 }

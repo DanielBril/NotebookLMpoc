@@ -30,10 +30,10 @@ const LEAK_PATTERNS: Array<{ id: string; pattern: RegExp; reason: string }> = [
 ];
 
 export const OUTPUT_GUARD_SAFE_REFUSAL_HE =
-  "התגובה נחסמה על ידי מנגנון הגנת הפלט של ContextLM משום שזוהה ניסיון לחשוף הנחיות מערכת מוגנות. אנא שאלו שאלה עובדתית על המקורות שהעליתם.";
+  "לצערנו, לא נמצאה תשובה לשאלה זו במקורות שהעליתם.";
 
 export const OUTPUT_GUARD_SAFE_REFUSAL_EN =
-  "Response blocked by ContextLM Output Guardrails because the generated content attempted to disclose protected system instructions. Please ask a factual question about your uploaded sources.";
+  "Unfortunately, the answer could not be found in your uploaded sources.";
 
 export const OUTPUT_GUARD_SAFE_REFUSAL = OUTPUT_GUARD_SAFE_REFUSAL_HE;
 

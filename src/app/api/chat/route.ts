@@ -403,21 +403,21 @@ export async function POST(req: NextRequest) {
   if (layer1.blocked && layer1.status) {
     const latencyMs = Date.now() - requestStartedAt;
     const isDangerous = layer1.status === "BLOCKED_INJECTION";
-    const alertContent =
+    const userFacingNotFound =
       lang === "he"
-        ? `נחסם על ידי מנגנון האבטחה (${layer1.layer}): ${layer1.reason}`
-        : `Guardrail Blocked (${layer1.layer}): ${layer1.reason}`;
+        ? "לצערנו, לא נמצאה תשובה לשאלה זו במקורות שהעליתם."
+        : "Unfortunately, the answer could not be found in your uploaded sources.";
 
     const reasonSummary = `[${layer1.rule}] ${layer1.reason}${
       layer1.matchedFragment ? ` | Matched: "${layer1.matchedFragment}"` : ""
     }`;
 
-    const [, alertMessage] = await Promise.all([
+    const [, replyMessage] = await Promise.all([
       prisma.message.create({
         data: { userId, role: "user", content: query },
       }),
       prisma.message.create({
-        data: { userId, role: "system_alert", content: alertContent },
+        data: { userId, role: "assistant", content: userFacingNotFound },
       }),
       prisma.usageLog.create({
         data: {
@@ -461,17 +461,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         blocked: true,
-        status: layer1.status,
-        rule: layer1.rule,
-        reason: layer1.reason,
         message: {
-          id: alertMessage.id,
-          role: alertMessage.role,
-          content: alertMessage.content,
-          createdAt: alertMessage.createdAt.toISOString(),
+          id: replyMessage.id,
+          role: replyMessage.role,
+          content: replyMessage.content,
+          createdAt: replyMessage.createdAt.toISOString(),
         },
       },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -606,19 +603,19 @@ export async function POST(req: NextRequest) {
         ? QueryStatus.BLOCKED_INJECTION
         : QueryStatus.BLOCKED_OUT_OF_SCOPE;
       const latencyMs = Date.now() - requestStartedAt;
-      const alertContent =
+      const userFacingNotFound =
         lang === "he"
-          ? `נחסם על ידי מסווג האבטחה (שכבה 4): ${cls.reason}`
-          : `Guardrail Blocked (Layer 4 Micro-Classifier): ${cls.reason}`;
+          ? "לצערנו, לא נמצאה תשובה לשאלה זו במקורות שהעליתם."
+          : "Unfortunately, the answer could not be found in your uploaded sources.";
 
       const classifierReason = `[L4_MICRO_CLASSIFIER] ${cls.reason} | Signals: ${borderlineSignals.join(", ")}`;
 
-      const [, alertMessage] = await Promise.all([
+      const [, replyMessage] = await Promise.all([
         prisma.message.create({
           data: { userId, role: "user", content: query },
         }),
         prisma.message.create({
-          data: { userId, role: "system_alert", content: alertContent },
+          data: { userId, role: "assistant", content: userFacingNotFound },
         }),
         prisma.usageLog.create({
           data: {
@@ -664,17 +661,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           blocked: true,
-          status,
-          rule: "L4_MICRO_CLASSIFIER",
-          reason: cls.reason,
           message: {
-            id: alertMessage.id,
-            role: alertMessage.role,
-            content: alertMessage.content,
-            createdAt: alertMessage.createdAt.toISOString(),
+            id: replyMessage.id,
+            role: replyMessage.role,
+            content: replyMessage.content,
+            createdAt: replyMessage.createdAt.toISOString(),
           },
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
   }
@@ -753,7 +747,6 @@ export async function POST(req: NextRequest) {
               controller.enqueue(
                 buildSseEvent("guardrail_abort", {
                   content: outputGuardRefusal,
-                  reason: guardCheck.reason,
                 })
               );
               break;
@@ -778,7 +771,7 @@ export async function POST(req: NextRequest) {
           const alertMsg = await prisma.message.create({
             data: {
               userId,
-              role: "system_alert",
+              role: "assistant",
               content: outputGuardRefusal,
             },
           });

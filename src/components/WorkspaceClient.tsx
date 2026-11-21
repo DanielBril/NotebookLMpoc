@@ -603,8 +603,12 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
                   m.id === tempAssistantId
                     ? {
                         ...m,
-                        role: "system_alert",
-                        content: payload.content || t.chat.errOutputGuard,
+                        role: "assistant",
+                        content:
+                          payload.content ||
+                          (lang === "he"
+                            ? "לצערנו, לא נמצאה תשובה לשאלה זו במקורות שהעליתם."
+                            : "Unfortunately, the answer could not be found in your uploaded sources."),
                         isStreaming: false,
                       }
                     : m
