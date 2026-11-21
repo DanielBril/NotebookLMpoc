@@ -6,6 +6,10 @@ import { getActiveUserStatus } from "@/lib/activeUser";
 import { prisma } from "@/lib/prisma";
 import { sysLogger } from "@/lib/logger";
 import { calculateCostUsd } from "@/lib/pricing";
+import {
+  getActivePrimaryModel,
+  supportsCustomTemperature,
+} from "@/lib/modelConfig";
 import { generateNonce, type GuardrailLang } from "@/lib/guardrails/inputFilter";
 import {
   assembleSandboxedContext,
@@ -646,7 +650,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const primaryModel = process.env.OPENAI_PRIMARY_MODEL || "gpt-4o-mini";
+  const primaryModel = await getActivePrimaryModel();
   const openai = new OpenAI({ apiKey });
   const nonce = generateNonce();
   const orderedSources = orderSourcesDeterministically(activeDocs);
@@ -656,7 +660,7 @@ export async function POST(req: NextRequest) {
   try {
     const completion = await openai.chat.completions.create({
       model: primaryModel,
-      temperature: 0.1,
+      ...(supportsCustomTemperature(primaryModel) ? { temperature: 0.1 } : {}),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },

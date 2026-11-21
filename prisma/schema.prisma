@@ -115,3 +115,11 @@ model SystemLog {
   @@index([source])
   @@index([createdAt])
 }
+
+model AppSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedBy String?
+  updatedAt DateTime @default(now()) @updatedAt
+}
+

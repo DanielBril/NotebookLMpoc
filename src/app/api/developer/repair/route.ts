@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { QueryStatus, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensurePdfDomPolyfills } from "@/lib/domMatrixPolyfill";
@@ -14,8 +14,6 @@ export type RepairAction =
   | "VERIFY_PDF_POLYFILL"
   | "RECALCULATE_DOCUMENT_TOKENS"
   | "PURGE_CORRUPTED_DOCUMENTS"
-  | "RESOLVE_ALL_ERRORS"
-  | "CLEAR_RESOLVED_LOGS"
   | "RESET_ADMIN_AND_DEV_ACCOUNTS"
   | "UNBLOCK_ALL_USERS";
 
@@ -64,23 +62,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { action?: RepairAction; logId?: string };
+  let body: { action?: RepairAction };
   try {
-    body = (await req.json()) as { action?: RepairAction; logId?: string };
+    body = (await req.json()) as { action?: RepairAction };
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
-  }
-
-  // Optional single-log resolve toggle
-  if (body.logId) {
-    const updated = await prisma.systemLog.update({
-      where: { id: body.logId },
-      data: { resolved: true },
-    });
-    return NextResponse.json({
-      ok: true,
-      summary: `Marked log ${updated.id} as resolved.`,
-    });
   }
 
   const action = body.action;
@@ -208,35 +194,6 @@ export async function POST(req: NextRequest) {
           meta: { purgedCount: corruptedIds.length },
         });
         return NextResponse.json({ ok: true, summary: msg });
-      }
-
-      case "RESOLVE_ALL_ERRORS": {
-        const [resLogs, delFailedUsage] = await Promise.all([
-          prisma.systemLog.updateMany({
-            where: { resolved: false },
-            data: { resolved: true },
-          }),
-          prisma.usageLog.deleteMany({
-            where: { status: QueryStatus.ERROR },
-          }),
-        ]);
-
-        const msg = `Marked ${resLogs.count} system log(s) resolved and cleared ${delFailedUsage.count} failed (ERROR) usage log entries.`;
-        await sysLogger.info("developer.repair.resolve_errors", msg, {
-          userId: session.user.id,
-          username: session.user.username,
-        });
-        return NextResponse.json({ ok: true, summary: msg });
-      }
-
-      case "CLEAR_RESOLVED_LOGS": {
-        const deleted = await prisma.systemLog.deleteMany({
-          where: { resolved: true },
-        });
-        return NextResponse.json({
-          ok: true,
-          summary: `Deleted ${deleted.count} resolved system log entries.`,
-        });
       }
 
       case "RESET_ADMIN_AND_DEV_ACCOUNTS": {

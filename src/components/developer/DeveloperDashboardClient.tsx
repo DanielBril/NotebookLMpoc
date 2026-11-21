@@ -1,12 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import {
+  CheckCircle2,
+  Cpu,
+  FileDown,
+  Loader2,
+  MessageSquareQuote,
+  RefreshCw,
+  X,
+  XCircle,
+} from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PipelineInspectorPanel } from "@/components/admin/PipelineInspectorPanel";
-import { formatTokensCompact, formatUsd } from "@/lib/pricing";
+import {
+  DeveloperAnalyticsCharts,
+  exportDeveloperReportToPdf,
+  type DeveloperAnalyticsPayload,
+  type DeveloperGraphId,
+} from "@/components/developer/DeveloperAnalyticsCharts";
+import {
+  formatLatencySeconds,
+  formatTokensCompact,
+  formatUsd,
+} from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
 import type { RepairAction } from "@/app/api/developer/repair/route";
+import type { ModelOption } from "@/lib/modelConfig";
 
 interface DeveloperDiagnosticsResponse {
   generatedAt: string;
@@ -15,6 +35,9 @@ interface DeveloperDiagnosticsResponse {
     dbPingMs: number;
     openAiConfigured: boolean;
     primaryModel: string;
+    modelUpdatedBy: string | null;
+    modelUpdatedAt: string | null;
+    availableModels: ModelOption[];
     guardrailModel: string;
     googleOAuthConfigured: boolean;
     authSecretConfigured: boolean;
@@ -28,7 +51,7 @@ interface DeveloperDiagnosticsResponse {
     heapUsedMb: number;
   };
   anomalies: {
-    unresolvedErrorsCount: number;
+    errorsCount: number;
     failedQueryLogsCount: number;
     corruptedOrEmptyDocs: number;
     usersOverTokenCap: number;
@@ -72,6 +95,7 @@ interface DeveloperDiagnosticsResponse {
       { count: number; bytes: number; tokens: number }
     >;
   };
+  analytics: DeveloperAnalyticsPayload;
   decisionLogs: Array<{
     id: string;
     userId: string;
@@ -85,6 +109,7 @@ interface DeveloperDiagnosticsResponse {
     model: string;
     reason: string | null;
     flaggedText: string | null;
+    userMessage: string | null;
     promptTokens: number;
     latencyMs: number;
     createdAt: string;
@@ -98,7 +123,6 @@ interface DeveloperDiagnosticsResponse {
     meta: unknown;
     userId: string | null;
     username: string | null;
-    resolved: boolean;
     createdAt: string;
   }>;
 }
@@ -111,6 +135,12 @@ interface DeveloperDashboardClientProps {
     image?: string | null;
     role: string;
   };
+}
+
+interface InlineActionResult {
+  ok: boolean;
+  message: string;
+  at: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -129,8 +159,17 @@ export function DeveloperDashboardClient({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [repairFeedback, setRepairFeedback] = useState<string | null>(null);
+  const [actionResults, setActionResults] = useState<
+    Record<string, InlineActionResult>
+  >({});
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [isSavingModel, setIsSavingModel] = useState(false);
+  const [modelResult, setModelResult] = useState<InlineActionResult | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
+  const [graph1, setGraph1] = useState<DeveloperGraphId>("filesByType");
+  const [graph2, setGraph2] = useState<DeveloperGraphId>("overallSuccessRate");
   const [decisionFilter, setDecisionFilter] = useState<
     | "ALL"
     | "NO_CONTEXT_FOUND"
@@ -138,9 +177,9 @@ export function DeveloperDashboardClient({
     | "BLOCKED_OUT_OF_SCOPE"
     | "ERROR"
   >("ALL");
-  const [logFilter, setLogFilter] = useState<
-    "ALL" | "ERROR" | "WARN" | "INFO" | "UNRESOLVED"
-  >("ALL");
+  const [logFilter, setLogFilter] = useState<"ALL" | "ERROR" | "WARN" | "INFO">(
+    "ALL"
+  );
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const handleRefresh = useCallback(async () => {
@@ -157,6 +196,7 @@ export function DeveloperDashboardClient({
       }
       const json = (await res.json()) as DeveloperDiagnosticsResponse;
       setData(json);
+      setSelectedModel(json.health.primaryModel);
     } catch {
       setError("Network error while fetching developer diagnostics.");
     } finally {
@@ -179,6 +219,7 @@ export function DeveloperDashboardClient({
         }
         const json = (await res.json()) as DeveloperDiagnosticsResponse;
         setData(json);
+        setSelectedModel(json.health.primaryModel);
       } catch {
         if (!cancelled) {
           setError("Network error while fetching developer diagnostics.");
@@ -197,54 +238,96 @@ export function DeveloperDashboardClient({
 
   async function runRepair(action: RepairAction) {
     setPendingAction(action);
-    setRepairFeedback(null);
-    setError(null);
     try {
       const res = await fetch("/api/developer/repair", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const json = (await res.json()) as {
+      const json = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         summary?: string;
         error?: string;
       };
+      const nowTime = new Date().toLocaleTimeString();
       if (!res.ok) {
-        setError(json.error || "Repair action failed.");
+        setActionResults((prev) => ({
+          ...prev,
+          [action]: {
+            ok: false,
+            message: json.error || "Action failed.",
+            at: nowTime,
+          },
+        }));
       } else {
-        setRepairFeedback(json.summary || "Repair completed.");
+        setActionResults((prev) => ({
+          ...prev,
+          [action]: {
+            ok: true,
+            message: json.summary || "Action completed successfully.",
+            at: nowTime,
+          },
+        }));
         await handleRefresh();
       }
     } catch {
-      setError("Network error while running repair action.");
+      setActionResults((prev) => ({
+        ...prev,
+        [action]: {
+          ok: false,
+          message: "Network error while running action.",
+          at: new Date().toLocaleTimeString(),
+        },
+      }));
     } finally {
       setPendingAction(null);
     }
   }
 
-  async function resolveSingleLog(logId: string) {
-    setPendingAction(logId);
+  async function handleSaveGlobalModel() {
+    if (!selectedModel || isSavingModel) return;
+    setIsSavingModel(true);
+    setModelResult(null);
     try {
-      const res = await fetch("/api/developer/repair", {
+      const res = await fetch("/api/developer/model", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logId }),
+        body: JSON.stringify({ model: selectedModel }),
       });
-      if (res.ok) {
-        setData((prev) =>
-          prev
-            ? {
-                ...prev,
-                systemLogs: prev.systemLogs.map((l) =>
-                  l.id === logId ? { ...l, resolved: true } : l
-                ),
-              }
-            : prev
-        );
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        primaryModel?: string;
+        error?: string;
+      };
+      const nowTime = new Date().toLocaleTimeString();
+      if (!res.ok) {
+        setModelResult({
+          ok: false,
+          message:
+            json.error ||
+            (isHe ? "שמירת המודל נכשלה." : "Failed to update model."),
+          at: nowTime,
+        });
+      } else {
+        setModelResult({
+          ok: true,
+          message: isHe
+            ? `המודל הגלובלי הוחלף ל-${json.primaryModel} עבור כל המשתמשים.`
+            : `Global active model switched to "${json.primaryModel}" for all users.`,
+          at: nowTime,
+        });
+        await handleRefresh();
       }
+    } catch {
+      setModelResult({
+        ok: false,
+        message: isHe
+          ? "שגיאת רשת בעדכון המודל."
+          : "Network error while updating model.",
+        at: new Date().toLocaleTimeString(),
+      });
     } finally {
-      setPendingAction(null);
+      setIsSavingModel(false);
     }
   }
 
@@ -252,7 +335,6 @@ export function DeveloperDashboardClient({
     if (!data) return [];
     return data.systemLogs.filter((l) => {
       if (logFilter === "ALL") return true;
-      if (logFilter === "UNRESOLVED") return !l.resolved;
       if (logFilter === "ERROR")
         return l.level === "ERROR" || l.level === "CRITICAL";
       return l.level === logFilter;
@@ -269,6 +351,31 @@ export function DeveloperDashboardClient({
   const h = data?.health;
   const eco = data?.economics;
   const anom = data?.anomalies;
+
+  const pdfReportData = useMemo(() => {
+    if (!data) return null;
+    return {
+      generatedAt: data.generatedAt,
+      primaryModel: data.health.primaryModel,
+      dbPingMs: data.health.dbPingMs,
+      totalUsers: data.storage.totalUsers,
+      totalDocuments: data.storage.totalDocuments,
+      totalStorageBytes: data.storage.totalStorageBytes,
+      economics: {
+        totalEvents: data.economics.totalEvents,
+        totalTokens: data.economics.totalTokens,
+        actualCostUsd: data.economics.actualCostUsd,
+        savedByCacheUsd: data.economics.savedByCacheUsd,
+        cacheHitRatePercent: data.economics.cacheHitRatePercent,
+        p50LatencyMs: data.economics.p50LatencyMs,
+        p95LatencyMs: data.economics.p95LatencyMs,
+        p99LatencyMs: data.economics.p99LatencyMs,
+      },
+      models: data.models,
+      analytics: data.analytics,
+      decisionLogs: data.decisionLogs,
+    };
+  }, [data]);
 
   const repairs: Array<{
     id: string;
@@ -316,17 +423,6 @@ export function DeveloperDashboardClient({
           tone: "rose",
         },
         {
-          id: "repair-resolve-errors-btn",
-          action: "RESOLVE_ALL_ERRORS",
-          title: isHe ? "סימון שגיאות כטופלו" : "Resolve open errors",
-          desc: isHe
-            ? "מסמן שגיאות פתוחות כטופלו ומנקה קריאות שנכשלו."
-            : "Marks open system errors resolved and clears failed usage entries.",
-          stat: `${data.anomalies.unresolvedErrorsCount + data.anomalies.failedQueryLogsCount} open`,
-          cta: isHe ? "אפס" : "Resolve all",
-          tone: "amber",
-        },
-        {
           id: "repair-reset-accounts-btn",
           action: "RESET_ADMIN_AND_DEV_ACCOUNTS",
           title: isHe ? "שחזור חשבונות מערכת" : "Restore system accounts",
@@ -366,16 +462,18 @@ export function DeveloperDashboardClient({
       <Navbar mode="developer" user={user} />
 
       <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">
-        {/* Header: title + the one Teal primary action */}
+        {/* Header: title + Export PDF + Refresh */}
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div dir={isHe ? "rtl" : "ltr"}>
+          <div dir={isHe ? "rtl" : "ltr"} className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
-              {isHe ? "דיאגנוסטיקה, החלטות ולוגים" : "Diagnostics, Decisions & Logs"}
+              {isHe
+                ? "דיאגנוסטיקה, החלטות ולוגים"
+                : "Diagnostics, Decisions & Logs"}
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               {isHe
-                ? "בריאות מערכת, עלויות, סיבות חסימה וחוסר הקשר, וכלי תיקון."
-                : "System health, cost, exact block / no-context reasons, and repair tools."}
+                ? "שליטה במודל הגלובלי, גרפים מותאמים, סיבות חסימה וחוסר הקשר, וכלי תחזוקה."
+                : "Global model control, custom analytics charts, exact block / no-context audit, and maintenance tools."}
               {data && (
                 <span className="font-mono text-xs text-slate-400" dir="ltr">
                   {" "}
@@ -384,35 +482,38 @@ export function DeveloperDashboardClient({
               )}
             </p>
           </div>
-          <button
-            id="dev-refresh-btn"
-            type="button"
-            disabled={isRefreshing}
-            onClick={() => void handleRefresh()}
-            className="btn-jet inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium cursor-pointer"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            {isHe ? "רענון" : "Refresh"}
-          </button>
-        </div>
-
-        {repairFeedback && (
-          <div
-            dir={isHe ? "rtl" : "ltr"}
-            className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 border-s-4 border-s-emerald-600 bg-emerald-50 px-4 py-3 text-sm text-emerald-950"
-          >
-            <span>{repairFeedback}</span>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {pdfReportData && (
+              <button
+                type="button"
+                onClick={() =>
+                  exportDeveloperReportToPdf(
+                    pdfReportData,
+                    graph1,
+                    graph2,
+                    isHe ? "he" : "en"
+                  )
+                }
+                className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3.5 py-2 text-xs sm:text-sm font-medium text-blue-900 cursor-pointer"
+              >
+                <FileDown className="h-3.5 w-3.5 shrink-0" />
+                <span>{isHe ? "ייצוא PDF" : "Export PDF"}</span>
+              </button>
+            )}
             <button
+              id="dev-refresh-btn"
               type="button"
-              onClick={() => setRepairFeedback(null)}
-              className="text-xs font-medium text-emerald-700 hover:text-emerald-950 underline cursor-pointer"
+              disabled={isRefreshing}
+              onClick={() => void handleRefresh()}
+              className="btn-jet inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer"
             >
-              {isHe ? "סגור" : "Dismiss"}
+              <RefreshCw
+                className={`h-3.5 w-3.5 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              <span>{isHe ? "רענון" : "Refresh"}</span>
             </button>
           </div>
-        )}
+        </div>
 
         {error && (
           <div className="rounded-lg border border-rose-200 border-s-4 border-s-rose-600 bg-rose-50 px-4 py-3 text-sm text-rose-900">
@@ -429,7 +530,7 @@ export function DeveloperDashboardClient({
           </div>
         ) : (
           <>
-            {/* Level 1: Key figures strip with semantic status dots */}
+            {/* Level 1: Key figures strip (All latencies in seconds) */}
             <section
               dir="ltr"
               className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8 border-y border-slate-200 py-8"
@@ -437,7 +538,7 @@ export function DeveloperDashboardClient({
               {[
                 {
                   label: isHe ? "מסד נתונים" : "Database",
-                  value: `${h.dbPingMs}ms`,
+                  value: formatLatencySeconds(h.dbPingMs),
                   dot: h.dbConnected ? "bg-emerald-500" : "bg-rose-500",
                   valueColor: "text-slate-900",
                   note: `Node ${h.nodeVersion} · ${h.heapUsedMb}/${h.rssMb} MB`,
@@ -451,23 +552,23 @@ export function DeveloperDashboardClient({
                 },
                 {
                   label: isHe ? "השהיה P50 / P95" : "Latency P50 / P95",
-                  value: `${eco.p50LatencyMs}/${eco.p95LatencyMs}ms`,
+                  value: `${formatLatencySeconds(eco.p50LatencyMs)} / ${formatLatencySeconds(eco.p95LatencyMs)}`,
                   dot: eco.p95LatencyMs > 5000 ? "bg-amber-500" : "bg-blue-500",
                   valueColor: "text-slate-900",
-                  note: `P99 ${eco.p99LatencyMs}ms`,
+                  note: `P99 ${formatLatencySeconds(eco.p99LatencyMs)} · Avg ${formatLatencySeconds(eco.avgLatencyMs)}`,
                 },
                 {
-                  label: isHe ? "שגיאות פתוחות" : "Open errors",
-                  value: String(anom.unresolvedErrorsCount),
+                  label: isHe ? "שיעור הצלחה" : "Success rate",
+                  value: `${data.analytics.overallSuccessRatePct}%`,
                   dot:
-                    anom.unresolvedErrorsCount > 0
-                      ? "bg-rose-500"
-                      : "bg-emerald-500",
+                    data.analytics.overallSuccessRatePct >= 75
+                      ? "bg-emerald-500"
+                      : "bg-amber-500",
                   valueColor:
-                    anom.unresolvedErrorsCount > 0
-                      ? "text-rose-600"
-                      : "text-emerald-700",
-                  note: `${anom.failedQueryLogsCount} ${isHe ? "קריאות שנכשלו" : "failed calls"} · PDF ${h.domMatrixPolyfillActive ? "ready" : "missing DOMMatrix"}`,
+                    data.analytics.overallSuccessRatePct >= 75
+                      ? "text-emerald-700"
+                      : "text-amber-700",
+                  note: `${anom.errorsCount} ${isHe ? "שגיאות מערכת" : "system errors"} · ${anom.failedQueryLogsCount} ${isHe ? "קריאות שנכשלו" : "failed calls"}`,
                 },
               ].map((s) => (
                 <div key={s.label}>
@@ -476,7 +577,7 @@ export function DeveloperDashboardClient({
                     {s.label}
                   </p>
                   <p
-                    className={`mt-1.5 text-3xl font-semibold tracking-tight font-mono ${s.valueColor}`}
+                    className={`mt-1.5 text-2xl sm:text-3xl font-semibold tracking-tight font-mono ${s.valueColor}`}
                   >
                     {s.value}
                   </p>
@@ -487,7 +588,137 @@ export function DeveloperDashboardClient({
               ))}
             </section>
 
-            {/* Level 1: Blocked & Not-in-Context Decision Audit */}
+            {/* Level 1: Global Model Switcher (applies to ALL users) */}
+            <section className="glass-panel rounded-2xl border p-5 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.1)] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div dir={isHe ? "rtl" : "ltr"} className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Cpu className="h-4.5 w-4.5 text-teal-600 shrink-0" />
+                    <h2 className="text-base font-semibold text-slate-900">
+                      {isHe
+                        ? "מודל AI פעיל לכל המשתמשים"
+                        : "Global Active LLM Model (All Users)"}
+                    </h2>
+                    <span
+                      dir="ltr"
+                      className="rounded-full bg-teal-50 border border-teal-200 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-teal-800"
+                    >
+                      {h.primaryModel}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {isHe
+                      ? "שינוי המודל כאן מתעדכן מיידית בבסיס הנתונים ומשפיע על הצ'אט ועל כלי הסטודיו עבור כל המשתמשים."
+                      : "Switching the model here persists globally and immediately applies to Q&A chat and Studio tools for every user."}
+                    {h.modelUpdatedBy && h.modelUpdatedAt && (
+                      <span
+                        dir="ltr"
+                        className="ms-1.5 font-mono text-[11px] text-slate-400"
+                      >
+                        · {isHe ? "עודכן ע״י" : "Updated by"} @
+                        {h.modelUpdatedBy} (
+                        {new Date(h.modelUpdatedAt).toLocaleString()})
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                  <select
+                    id="global-model-select"
+                    value={selectedModel || h.primaryModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      setModelResult(null);
+                    }}
+                    dir="ltr"
+                    className="flex-1 sm:flex-none min-w-[210px] max-w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40 cursor-pointer"
+                  >
+                    {h.availableModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label} ({m.id}) — ${m.inputPer1M}/${m.outputPer1M} per 1M
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    id="save-global-model-btn"
+                    type="button"
+                    disabled={
+                      isSavingModel ||
+                      !selectedModel ||
+                      selectedModel === h.primaryModel
+                    }
+                    onClick={() => void handleSaveGlobalModel()}
+                    className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer"
+                  >
+                    {isSavingModel && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                    )}
+                    <span>
+                      {isHe ? "החל לכל המשתמשים" : "Apply to All Users"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {selectedModel && (
+                <p
+                  dir={isHe ? "rtl" : "ltr"}
+                  className="text-[11px] text-slate-500"
+                >
+                  {(() => {
+                    const opt = h.availableModels.find(
+                      (m) => m.id === selectedModel
+                    );
+                    if (!opt) return null;
+                    return isHe ? opt.descriptionHe : opt.descriptionEn;
+                  })()}
+                </p>
+              )}
+
+              {modelResult && (
+                <div
+                  dir={isHe ? "rtl" : "ltr"}
+                  className={`animate-fade-in flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs ${
+                    modelResult.ok
+                      ? "bg-emerald-50/90 border-emerald-200 text-emerald-950"
+                      : "bg-rose-50/90 border-rose-200 text-rose-950"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {modelResult.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    )}
+                    <span className="break-words">{modelResult.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModelResult(null)}
+                    className="shrink-0 text-slate-500 hover:text-slate-900 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {/* Level 1: Customizable 2-Graph Analytics Section + PDF Export */}
+            {pdfReportData && (
+              <DeveloperAnalyticsCharts
+                analytics={data.analytics}
+                reportData={pdfReportData}
+                isHe={isHe}
+                graph1={graph1}
+                graph2={graph2}
+                onChangeGraph1={setGraph1}
+                onChangeGraph2={setGraph2}
+              />
+            )}
+
+            {/* Level 1: Blocked & Not-in-Context Decision Audit (with User Message) */}
             <section className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div dir={isHe ? "rtl" : "ltr"}>
@@ -498,8 +729,8 @@ export function DeveloperDashboardClient({
                   </h2>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {isHe
-                      ? "מציג את הסיבה המדויקת (חוק, מילות מפתח שחסרו במקורות, או שכבת האבטחה) לכל חסימה או סירוב."
-                      : "Exact rule, matched pattern, or missing source keywords for every blocked or refused message."}
+                      ? "מציג את ההודעה שהמשתמש שלח ואת הסיבה המדויקת (חוק, מילות מפתח שחסרו במקורות, או שכבת האבטחה)."
+                      : "Shows the exact user message that triggered each decision along with the rule, missing keywords, or security layer."}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-xs">
@@ -554,7 +785,7 @@ export function DeveloperDashboardClient({
                     : "No blocked or not-in-context decisions match this filter."}
                 </p>
               ) : (
-                <div className="divide-y divide-slate-100 border-t border-slate-200 max-h-[420px] overflow-y-auto">
+                <div className="divide-y divide-slate-100 border-t border-slate-200 max-h-[460px] overflow-y-auto">
                   {filteredDecisions.map((d) => {
                     const statusBadge =
                       d.status === "BLOCKED_INJECTION"
@@ -565,8 +796,10 @@ export function DeveloperDashboardClient({
                             ? "bg-amber-100 text-amber-900 border-amber-200"
                             : "bg-red-100 text-red-800 border-red-200";
 
+                    const msgText = d.userMessage || d.flaggedText;
+
                     return (
-                      <div key={d.id} className="py-3.5 space-y-1.5">
+                      <div key={d.id} className="py-4 space-y-2">
                         <div
                           dir="ltr"
                           className="flex flex-wrap items-center justify-between gap-2"
@@ -584,7 +817,7 @@ export function DeveloperDashboardClient({
                             <span className="text-slate-500">{d.model}</span>
                             <span className="text-slate-400">·</span>
                             <span className="text-slate-500">
-                              {d.latencyMs}ms
+                              {formatLatencySeconds(d.latencyMs)}
                             </span>
                           </div>
                           <span className="font-mono text-[11px] text-slate-400">
@@ -592,10 +825,47 @@ export function DeveloperDashboardClient({
                           </span>
                         </div>
 
+                        {/* Triggering User Message */}
+                        <div
+                          dir={isHe ? "rtl" : "ltr"}
+                          className={`rounded-xl border px-3.5 py-2.5 text-xs ${
+                            d.status === "BLOCKED_INJECTION"
+                              ? "bg-rose-50/75 border-rose-200/80 text-rose-950"
+                              : "bg-white/85 border-slate-200/85 text-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <MessageSquareQuote className="h-3.5 w-3.5 mt-0.5 text-slate-400 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-semibold text-slate-500 me-1.5">
+                                {isHe ? "הודעת המשתמש:" : "User message:"}
+                              </span>
+                              {msgText ? (
+                                <span
+                                  dir="auto"
+                                  className="font-medium break-words whitespace-pre-wrap"
+                                >
+                                  {msgText}
+                                </span>
+                              ) : (
+                                <span className="italic text-slate-400">
+                                  {isHe
+                                    ? "ההודעה אינה זמינה (היסטוריית הצ'אט נוקתה או נרשמה לפני העדכון)"
+                                    : "Message unavailable (chat history cleared or logged before capture)"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Exact Decision Reason */}
                         <p
                           dir="auto"
-                          className="text-sm text-slate-800 break-words"
+                          className="text-xs sm:text-sm text-slate-700 break-words"
                         >
+                          <span className="font-semibold text-slate-500 me-1.5">
+                            {isHe ? "סיבה:" : "Reason:"}
+                          </span>
                           {d.reason ||
                             (d.status === "NO_CONTEXT_FOUND"
                               ? isHe
@@ -605,15 +875,6 @@ export function DeveloperDashboardClient({
                                 ? "לא צוינה סיבה מפורטת."
                                 : "No detailed reason recorded.")}
                         </p>
-
-                        {d.flaggedText && (
-                          <p
-                            dir="auto"
-                            className="rounded bg-rose-50/70 border border-rose-200/70 px-3 py-1.5 text-xs font-mono text-rose-950 break-words"
-                          >
-                            {d.flaggedText}
-                          </p>
-                        )}
                       </div>
                     );
                   })}
@@ -621,7 +882,7 @@ export function DeveloperDashboardClient({
               )}
             </section>
 
-            {/* Level 1: System & Stack-Trace Logs */}
+            {/* Level 1: System & Stack-Trace Logs (No resolve option) */}
             <section className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2
@@ -632,23 +893,21 @@ export function DeveloperDashboardClient({
                     ? "לוגי מערכת מלאים (כולל Stack Traces ומטא-דאטה)"
                     : "Full System Logs (Stack Traces & Decision Metadata)"}
                 </h2>
-                <div className="flex items-center gap-1 text-xs">
-                  {(["ALL", "UNRESOLVED", "ERROR", "WARN", "INFO"] as const).map(
-                    (tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setLogFilter(tab)}
-                        className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
-                          logFilter === tab
-                            ? "bg-teal-600 text-white font-semibold"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                        }`}
-                      >
-                        {tab}
-                      </button>
-                    )
-                  )}
+                <div className="flex flex-wrap items-center gap-1 text-xs">
+                  {(["ALL", "ERROR", "WARN", "INFO"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setLogFilter(tab)}
+                      className={`rounded-md px-2.5 py-1 transition-colors cursor-pointer ${
+                        logFilter === tab
+                          ? "bg-teal-600 text-white font-semibold"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -675,10 +934,7 @@ export function DeveloperDashboardClient({
                         : "bg-blue-50 text-blue-800 border-blue-200";
 
                     return (
-                      <div
-                        key={log.id}
-                        className={`py-3.5 ${log.resolved ? "opacity-55" : ""}`}
-                      >
+                      <div key={log.id} className="py-3.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div
                             dir="ltr"
@@ -697,39 +953,23 @@ export function DeveloperDashboardClient({
                               {new Date(log.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3 text-xs">
-                            {(Boolean(log.stack) || Boolean(log.meta)) && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedLogId(isExpanded ? null : log.id)
-                                }
-                                className="font-medium text-blue-700 hover:text-blue-900 underline underline-offset-2 cursor-pointer"
-                              >
-                                {isExpanded
-                                  ? isHe
-                                    ? "הסתר פרטים"
-                                    : "Hide details"
-                                  : isHe
-                                    ? "הצג פרטים / JSON"
-                                    : "View details / JSON"}
-                              </button>
-                            )}
-                            {!log.resolved ? (
-                              <button
-                                type="button"
-                                disabled={pendingAction === log.id}
-                                onClick={() => void resolveSingleLog(log.id)}
-                                className="font-medium text-emerald-700 hover:text-emerald-900 underline underline-offset-2 cursor-pointer"
-                              >
-                                {isHe ? "סמן כטופל" : "Resolve"}
-                              </button>
-                            ) : (
-                              <span className="text-emerald-600 font-medium">
-                                {isHe ? "טופל" : "Resolved"}
-                              </span>
-                            )}
-                          </div>
+                          {(Boolean(log.stack) || Boolean(log.meta)) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedLogId(isExpanded ? null : log.id)
+                              }
+                              className="text-xs font-medium text-blue-700 hover:text-blue-900 underline underline-offset-2 shrink-0 cursor-pointer"
+                            >
+                              {isExpanded
+                                ? isHe
+                                  ? "הסתר פרטים"
+                                  : "Hide details"
+                                : isHe
+                                  ? "הצג פרטים / JSON"
+                                  : "View details / JSON"}
+                            </button>
+                          )}
                         </div>
                         <p
                           dir="auto"
@@ -764,7 +1004,7 @@ export function DeveloperDashboardClient({
               )}
             </section>
 
-            {/* Level 2: Repair Tools with Semantic Action Buttons */}
+            {/* Level 2: Repair & Maintenance Tools (Inline result directly under each action) */}
             <section className="space-y-4">
               <div dir={isHe ? "rtl" : "ltr"}>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-900">
@@ -772,71 +1012,97 @@ export function DeveloperDashboardClient({
                 </h2>
                 <p className="text-sm text-slate-500">
                   {isHe
-                    ? "פעולות תחזוקה ותיקון עצמי בלחיצה אחת."
-                    : "One-click self-healing and maintenance actions."}
+                    ? "פעולות בדיקה, תחזוקה ותיקון עצמי בלחיצה אחת — תוצאת כל פעולה מוצגת ישירות מתחתיה."
+                    : "One-click diagnostic and maintenance actions — each result displays directly underneath the action."}
                 </p>
               </div>
               <div className="divide-y divide-slate-100 border-t border-slate-200">
-                {repairs.map((r) => (
-                  <div
-                    key={r.id}
-                    className="py-4 flex flex-wrap items-center justify-between gap-4"
-                  >
-                    <div
-                      dir={isHe ? "rtl" : "ltr"}
-                      className="min-w-0 flex-1 basis-72"
-                    >
-                      <p className="text-sm font-medium text-slate-900">
-                        {r.title}
-                        {r.stat && (
-                          <span
-                            dir="ltr"
-                            className="ms-2 font-mono text-[11px] font-medium text-slate-500"
+                {repairs.map((r) => {
+                  const resItem = actionResults[r.action];
+                  return (
+                    <div key={r.id} className="py-4 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div
+                          dir={isHe ? "rtl" : "ltr"}
+                          className="min-w-0 flex-1 basis-72"
+                        >
+                          <p className="text-sm font-medium text-slate-900">
+                            {r.title}
+                            {r.stat && (
+                              <span
+                                dir="ltr"
+                                className="ms-2 font-mono text-[11px] font-medium text-slate-500"
+                              >
+                                ({r.stat})
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {r.desc}
+                          </p>
+                        </div>
+                        <button
+                          id={r.id}
+                          type="button"
+                          disabled={pendingAction !== null}
+                          onClick={() => void runRepair(r.action)}
+                          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer ${toneBtnClass[r.tone]}`}
+                        >
+                          {pendingAction === r.action && (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          )}
+                          {r.cta}
+                        </button>
+                      </div>
+
+                      {/* Inline Action Result Directly Under the Action */}
+                      {resItem && (
+                        <div
+                          dir="auto"
+                          className={`animate-fade-in flex items-start justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs ${
+                            resItem.ok
+                              ? "bg-emerald-50/90 border-emerald-200 text-emerald-950"
+                              : "bg-rose-50/90 border-rose-200 text-rose-950"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 min-w-0 flex-1">
+                            {resItem.ok ? (
+                              <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
+                            ) : (
+                              <XCircle className="h-4 w-4 mt-0.5 text-rose-600 shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <p className="font-mono text-[11px] break-words leading-relaxed">
+                                {resItem.message}
+                              </p>
+                              <p className="font-mono text-[10px] opacity-65">
+                                {resItem.at}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActionResults((prev) => {
+                                const next = { ...prev };
+                                delete next[r.action];
+                                return next;
+                              })
+                            }
+                            className="shrink-0 text-slate-500 hover:text-slate-900 cursor-pointer"
+                            title={isHe ? "סגור" : "Dismiss"}
                           >
-                            ({r.stat})
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">{r.desc}</p>
-                    </div>
-                    <button
-                      id={r.id}
-                      type="button"
-                      disabled={pendingAction !== null}
-                      onClick={() => void runRepair(r.action)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer ${toneBtnClass[r.tone]}`}
-                    >
-                      {pendingAction === r.action && (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       )}
-                      {r.cta}
-                    </button>
-                  </div>
-                ))}
-                <div className="py-4 flex items-center justify-between gap-4">
-                  <div dir={isHe ? "rtl" : "ltr"}>
-                    <p className="text-sm font-medium text-slate-900">
-                      {isHe ? "ניקוי לוגים שטופלו" : "Prune resolved logs"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {isHe
-                        ? "מוחק מהמסד לוגים שסומנו כטופלו."
-                        : "Deletes log rows already marked resolved."}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={pendingAction !== null}
-                    onClick={() => void runRepair("CLEAR_RESOLVED_LOGS")}
-                    className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3.5 py-1.5 text-xs font-semibold text-rose-800 disabled:opacity-40 transition-colors cursor-pointer"
-                  >
-                    {isHe ? "נקה" : "Prune"}
-                  </button>
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
-            {/* Level 2: Per-model table */}
+            {/* Level 2: Per-model table (Latency in seconds) */}
             <section className="space-y-4">
               <h2
                 dir={isHe ? "rtl" : "ltr"}
@@ -856,7 +1122,7 @@ export function DeveloperDashboardClient({
                       <th className={`${th} text-end`}>Errors</th>
                       <th className={`${th} text-end`}>Input (cached)</th>
                       <th className={`${th} text-end`}>Output</th>
-                      <th className={`${th} text-end`}>Latency</th>
+                      <th className={`${th} text-end`}>Avg Latency</th>
                       <th className={`${th} text-end pe-0`}>Cost</th>
                     </tr>
                   </thead>
@@ -889,7 +1155,7 @@ export function DeveloperDashboardClient({
                           {m.completionTokens.toLocaleString()}
                         </td>
                         <td className="py-2.5 pe-4 text-end text-slate-700">
-                          {m.avgLatencyMs}ms
+                          {formatLatencySeconds(m.avgLatencyMs)}
                         </td>
                         <td className="py-2.5 text-end font-semibold text-slate-900">
                           {formatUsd(m.costUsd)}

@@ -5,28 +5,64 @@ export interface ModelRateCard {
 }
 
 export const MODEL_PRICING: Record<string, ModelRateCard> = {
+  "gpt-4o-mini": {
+    inputPer1M: 0.15,
+    cachedInputPer1M: 0.075,
+    outputPer1M: 0.60,
+  },
+  "gpt-4o": {
+    inputPer1M: 2.50,
+    cachedInputPer1M: 1.25,
+    outputPer1M: 10.00,
+  },
+  "gpt-4.1-nano": {
+    inputPer1M: 0.10,
+    cachedInputPer1M: 0.025,
+    outputPer1M: 0.40,
+  },
+  "gpt-4.1-mini": {
+    inputPer1M: 0.40,
+    cachedInputPer1M: 0.10,
+    outputPer1M: 1.60,
+  },
+  "gpt-4.1": {
+    inputPer1M: 2.00,
+    cachedInputPer1M: 0.50,
+    outputPer1M: 8.00,
+  },
+  "gpt-5-nano": {
+    inputPer1M: 0.05,
+    cachedInputPer1M: 0.005,
+    outputPer1M: 0.40,
+  },
+  "gpt-5-mini": {
+    inputPer1M: 0.25,
+    cachedInputPer1M: 0.025,
+    outputPer1M: 2.00,
+  },
   "gpt-6-luna": {
     inputPer1M: 0.10,
     cachedInputPer1M: 0.01,
     outputPer1M: 0.50,
   },
-  "gpt-5-nano": {
-    inputPer1M: 0.05,
-    cachedInputPer1M: 0.005,
-    outputPer1M: 0.20,
-  },
 };
 
-const DEFAULT_RATE = MODEL_PRICING["gpt-6-luna"];
+const DEFAULT_RATE = MODEL_PRICING["gpt-4o-mini"];
 
 export function getModelRate(model: string): ModelRateCard {
   const normalized = model.toLowerCase().trim();
   if (MODEL_PRICING[normalized]) {
     return MODEL_PRICING[normalized];
   }
-  if (normalized.includes("nano")) {
+  if (normalized.includes("4.1-nano")) return MODEL_PRICING["gpt-4.1-nano"];
+  if (normalized.includes("4.1-mini")) return MODEL_PRICING["gpt-4.1-mini"];
+  if (normalized.includes("4.1")) return MODEL_PRICING["gpt-4.1"];
+  if (normalized.includes("4o-mini")) return MODEL_PRICING["gpt-4o-mini"];
+  if (normalized.includes("4o")) return MODEL_PRICING["gpt-4o"];
+  if (normalized.includes("5-nano") || normalized.includes("nano")) {
     return MODEL_PRICING["gpt-5-nano"];
   }
+  if (normalized.includes("5-mini")) return MODEL_PRICING["gpt-5-mini"];
   return DEFAULT_RATE;
 }
 
@@ -72,4 +108,11 @@ export function formatTokensCompact(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
   if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
   return tokens.toLocaleString("en-US");
+}
+
+export function formatLatencySeconds(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "0.00s";
+  const sec = ms / 1000;
+  if (sec < 10) return `${sec.toFixed(2)}s`;
+  return `${sec.toFixed(1)}s`;
 }

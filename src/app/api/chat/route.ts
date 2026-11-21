@@ -7,6 +7,10 @@ import { prisma } from "@/lib/prisma";
 import { sysLogger } from "@/lib/logger";
 import { calculateCostUsd } from "@/lib/pricing";
 import {
+  getActivePrimaryModel,
+  supportsCustomTemperature,
+} from "@/lib/modelConfig";
+import {
   generateNonce,
   getBorderlineSignals,
   inspectUserInput,
@@ -342,7 +346,7 @@ export async function POST(req: NextRequest) {
   const hourOfDay = now.getUTCHours();
   const dayOfWeek = now.getUTCDay();
   const userId = session.user.id;
-  const primaryModel = process.env.OPENAI_PRIMARY_MODEL || "gpt-4o-mini";
+  const primaryModel = await getActivePrimaryModel();
 
   let body: { query?: string; lang?: string };
   try {
@@ -703,7 +707,9 @@ export async function POST(req: NextRequest) {
 
         const completionStream = await openai.chat.completions.create({
           model: primaryModel,
-          temperature: 0.0,
+          ...(supportsCustomTemperature(primaryModel)
+            ? { temperature: 0.0 }
+            : {}),
           stream: true,
           stream_options: { include_usage: true },
           messages: [
@@ -922,7 +928,11 @@ export async function POST(req: NextRequest) {
           error: err,
           userId,
           username: session.user.username,
-          meta: { model: primaryModel, latencyMs },
+          meta: {
+            model: primaryModel,
+            latencyMs,
+            queryPreview: sanitizeAuditSnippet(query, 300),
+          },
         });
 
         await prisma.usageLog
@@ -937,7 +947,7 @@ export async function POST(req: NextRequest) {
               estimatedCostUsd: 0,
               latencyMs,
               status: QueryStatus.ERROR,
-              guardrailReason: null,
+              guardrailReason: `[STREAM_ERROR] ${message.slice(0, 400)}`,
               flaggedText: null,
               hourOfDay,
               dayOfWeek,
