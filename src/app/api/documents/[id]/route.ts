@@ -13,8 +13,100 @@ function blockedResponse(reason: string | null) {
   );
 }
 
+const PREVIEW_WINDOW_CHARS = 6000;
+
+function normalizeForLookup(text: string): { norm: string; map: number[] } {
+  const chars: string[] = [];
+  const map: number[] = [];
+  let prevSpace = true;
+
+  for (let i = 0; i < text.length; i++) {
+    let ch = text[i];
+    if (/[\u200B-\u200F\u202A-\u202E\uFEFF]/.test(ch)) continue;
+    if (/\s/.test(ch)) {
+      if (!prevSpace) {
+        chars.push(" ");
+        map.push(i);
+        prevSpace = true;
+      }
+      continue;
+    }
+    if (ch === "“" || ch === "”" || ch === "„" || ch === "״") ch = '"';
+    else if (ch === "‘" || ch === "’" || ch === "׳") ch = "'";
+    else if (ch === "–" || ch === "—") ch = "-";
+    chars.push(ch.toLowerCase());
+    map.push(i);
+    prevSpace = false;
+  }
+
+  if (chars.length > 0 && chars[chars.length - 1] === " ") {
+    chars.pop();
+    map.pop();
+  }
+  return { norm: chars.join(""), map };
+}
+
+function buildCenteredExcerpt(
+  fullText: string,
+  tokenCount: number,
+  query: string | null
+): string {
+  if (fullText.length <= PREVIEW_WINDOW_CHARS) {
+    return fullText;
+  }
+
+  let matchStart = -1;
+  const trimmedQuery = (query ?? "").trim();
+
+  if (trimmedQuery.length >= 3) {
+    const lowerFull = fullText.toLowerCase();
+    const lowerQ = trimmedQuery.toLowerCase();
+    matchStart = lowerFull.indexOf(lowerQ);
+
+    if (matchStart === -1) {
+      const normFull = normalizeForLookup(fullText);
+      const normQ = normalizeForLookup(trimmedQuery).norm;
+      if (normQ.length >= 3) {
+        let normPos = normFull.norm.indexOf(normQ);
+        if (normPos === -1 && normQ.length > 36) {
+          normPos = normFull.norm.indexOf(normQ.slice(0, 36));
+        }
+        if (normPos === -1 && normQ.length > 20) {
+          normPos = normFull.norm.indexOf(normQ.slice(0, 20));
+        }
+        if (normPos !== -1) {
+          matchStart = normFull.map[normPos] ?? -1;
+        }
+      }
+    }
+  }
+
+  if (matchStart === -1) {
+    return `${fullText.slice(0, PREVIEW_WINDOW_CHARS)}\n\n… [Truncated preview — full ${tokenCount.toLocaleString()} tokens available in context]`;
+  }
+
+  let start = Math.max(0, matchStart - 2200);
+  const end = Math.min(fullText.length, start + PREVIEW_WINDOW_CHARS);
+  start = Math.max(0, end - PREVIEW_WINDOW_CHARS);
+
+  if (start > 0) {
+    const nextBreak = fullText.indexOf("\n", start);
+    if (nextBreak !== -1 && nextBreak < matchStart && nextBreak - start < 220) {
+      start = nextBreak + 1;
+    }
+  }
+
+  const prefix = start > 0 ? "… [Excerpt centered on matched passage]\n\n" : "";
+  const suffix =
+    end < fullText.length
+      ? `\n\n… [Truncated preview — full ${tokenCount.toLocaleString()} tokens available in context]`
+      : "";
+
+  return `${prefix}${fullText.slice(start, end)}${suffix}`;
+}
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -28,6 +120,7 @@ export async function GET(
   }
 
   const { id } = await context.params;
+  const query = req.nextUrl.searchParams.get("q");
 
   const doc = await prisma.document.findFirst({
     where: { id, userId: session.user.id },
@@ -51,10 +144,7 @@ export async function GET(
     document: {
       ...doc,
       createdAt: doc.createdAt.toISOString(),
-      excerpt:
-        doc.extractedText.length > 6000
-          ? `${doc.extractedText.slice(0, 6000)}\n\n… [Truncated preview — full ${doc.tokenCount.toLocaleString()} tokens available in context]`
-          : doc.extractedText,
+      excerpt: buildCenteredExcerpt(doc.extractedText, doc.tokenCount, query),
     },
   });
 }

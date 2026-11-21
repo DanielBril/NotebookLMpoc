@@ -301,9 +301,9 @@ export function ChatPanel({
                           type="button"
                           disabled={isSending}
                           onClick={() => void onSendQuery(chip)}
-                          className="w-full py-3 px-2 -mx-2 rounded-xl text-start text-sm text-slate-800 hover:text-teal-700 hover:bg-white/70 flex items-center justify-between gap-4 cursor-pointer group"
+                          className="w-full py-3 px-2.5 rounded-xl text-start text-sm text-slate-800 hover:text-teal-700 hover:bg-white/70 flex items-center justify-between gap-4 cursor-pointer group min-w-0"
                         >
-                          <span className="truncate">{chip}</span>
+                          <span className="truncate min-w-0">{chip}</span>
                           <span className="text-xs font-mono text-slate-400 group-hover:text-teal-600 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5">
                             {isHe ? "←" : "→"}
                           </span>
@@ -327,7 +327,7 @@ export function ChatPanel({
                       <div className="max-w-[85%] rounded-2xl rounded-ee-sm bg-teal-600/12 backdrop-blur-md border border-teal-500/25 px-4 py-3 shadow-[0_6px_20px_-10px_rgba(13,148,136,0.25)]">
                         <div
                           dir="auto"
-                          className="text-[15px] font-medium leading-relaxed text-slate-900 whitespace-pre-wrap"
+                          className="text-[15px] font-medium leading-relaxed text-slate-900 whitespace-pre-wrap break-words"
                         >
                           {msg.content}
                         </div>
@@ -346,13 +346,13 @@ export function ChatPanel({
                       >
                         <div className="flex items-start gap-2.5">
                           <ShieldAlert className="h-4 w-4 mt-0.5 text-rose-600 shrink-0" />
-                          <div className="space-y-1">
+                          <div className="space-y-1 min-w-0">
                             <p className="text-xs font-bold uppercase tracking-wider text-rose-700">
                               {t.chat.guardrailTriggeredTitle}
                             </p>
                             <p
                               dir="auto"
-                              className="text-sm leading-relaxed text-rose-900"
+                              className="text-sm leading-relaxed text-rose-900 break-words"
                             >
                               {msg.content}
                             </p>
@@ -384,7 +384,7 @@ export function ChatPanel({
                 return (
                   <div
                     key={msg.id}
-                    className="animate-message-in glass-panel rounded-2xl border p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.09)]"
+                    className="animate-message-in glass-panel rounded-2xl border p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.09)] min-w-0"
                   >
                     {msg.content ? (
                       <>
@@ -428,7 +428,7 @@ export function ChatPanel({
                           className={
                             isNoContextRefusal
                               ? "rounded-xl bg-amber-50/85 border border-amber-200/90 border-s-4 border-s-amber-500 px-4 py-3 text-sm leading-relaxed text-amber-950"
-                              : "contextlm-prose"
+                              : "contextlm-prose break-words"
                           }
                         >
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -450,19 +450,19 @@ export function ChatPanel({
                                 key={`${msg.id}-cite-${cite.index}-${cite.documentId}`}
                                 type="button"
                                 onClick={() => onCitationClick(cite)}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50/90 hover:bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900 border border-emerald-200/80 cursor-pointer"
+                                className="inline-flex items-center gap-1.5 max-w-full rounded-lg bg-emerald-50/90 hover:bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900 border border-emerald-200/80 cursor-pointer"
                               >
                                 <span
-                                  className="font-mono text-[11px] font-semibold text-emerald-700"
+                                  className="font-mono text-[11px] font-semibold text-emerald-700 shrink-0"
                                   dir="ltr"
                                 >
                                   [{cite.index}]
                                 </span>
-                                <span className="max-w-[180px] truncate">
+                                <span className="max-w-[150px] sm:max-w-[200px] min-w-0 truncate">
                                   {cite.filename}
                                 </span>
                                 {cite.matchScore && (
-                                  <span className="font-mono text-[10px] text-emerald-700">
+                                  <span className="font-mono text-[10px] text-emerald-700 shrink-0">
                                     · {cite.matchScore}%
                                   </span>
                                 )}
@@ -495,9 +495,9 @@ export function ChatPanel({
       </div>
 
       {/* Bottom Floating Glassy Input Composer Dock */}
-      <div className="px-4 sm:px-8 pb-5 pt-2 shrink-0">
+      <div className="px-3 sm:px-8 pb-4 sm:pb-5 pt-2 shrink-0">
         <div className="mx-auto max-w-3xl relative">
-          <div className="glass-dock rounded-2xl border border-white/80 ring-1 ring-slate-900/10 focus-within:ring-2 focus-within:ring-teal-500/45 transition-all px-4 py-3">
+          <div className="glass-dock rounded-2xl border border-white/80 ring-1 ring-slate-900/10 focus-within:ring-2 focus-within:ring-teal-500/45 transition-all px-3.5 sm:px-4 py-3">
             <textarea
               ref={textareaRef}
               id="chat-query-input"
@@ -521,7 +521,7 @@ export function ChatPanel({
 
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-200/70">
               {/* Left side: More Actions Dropdown + Clear Chat */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                 <div ref={actionsMenuRef} className="relative">
                   <button
                     id="more-actions-btn"
@@ -534,16 +534,16 @@ export function ChatPanel({
                         return next;
                       });
                     }}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold border cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold border cursor-pointer ${
                       actionsOpen
                         ? "bg-teal-50 text-teal-800 border-teal-300"
                         : "bg-white/80 text-slate-700 border-slate-200/90 hover:bg-white hover:border-teal-300 hover:text-teal-800"
                     }`}
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-teal-600" />
                     <span>{isHe ? "פעולות נוספות" : "More Actions"}</span>
                     <ChevronDown
-                      className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
+                      className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ${
                         actionsOpen ? "rotate-180 text-teal-600" : ""
                       }`}
                     />
@@ -553,7 +553,7 @@ export function ChatPanel({
                   {actionsOpen && (
                     <div
                       dir={isHe ? "rtl" : "ltr"}
-                      className="animate-popover-in glass-popover absolute bottom-full start-0 mb-2.5 w-[310px] sm:w-[340px] rounded-2xl p-2 z-40"
+                      className="animate-popover-in glass-popover absolute bottom-full start-0 mb-2.5 w-[min(340px,calc(100vw-2.5rem))] max-w-[calc(100vw-2.5rem)] rounded-2xl p-2 z-40"
                     >
                       {!selectedAction ? (
                         <div className="space-y-1">
@@ -588,11 +588,11 @@ export function ChatPanel({
                         </div>
                       ) : (
                         <div className="p-2 space-y-3 animate-fade-in">
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <button
                               type="button"
                               onClick={() => setSelectedAction(null)}
-                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                              className="inline-flex items-center gap-1 shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
                             >
                               {isHe ? (
                                 <ArrowRight className="h-3.5 w-3.5" />
@@ -628,14 +628,14 @@ export function ChatPanel({
                             </p>
                           )}
 
-                          <div className="flex items-center justify-end gap-2 pt-1">
+                          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
                             <button
                               type="button"
                               onClick={() => {
                                 setSelectedAction(null);
                                 setActionsOpen(false);
                               }}
-                              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
                             >
                               {isHe ? "ביטול" : "Cancel"}
                             </button>
@@ -649,9 +649,9 @@ export function ChatPanel({
                                 setActionsOpen(false);
                                 onOpenStudio(modeToRun);
                               }}
-                              className="btn-jet inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
+                              className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
                             >
-                              <Play className="h-3 w-3 fill-current" />
+                              <Play className="h-3 w-3 fill-current shrink-0" />
                               <span>
                                 {isHe
                                   ? selectedAction.startHe
@@ -672,17 +672,20 @@ export function ChatPanel({
                     type="button"
                     disabled={isSending}
                     onClick={() => void onClearChat()}
-                    className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-700 hover:bg-rose-50/90 border border-transparent hover:border-rose-200/80 disabled:opacity-35 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-700 hover:bg-rose-50/90 border border-transparent hover:border-rose-200/80 disabled:opacity-35 cursor-pointer"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
                     <span>{t.chat.clearChat}</span>
                   </button>
                 )}
               </div>
 
               {/* Right side: Character count + Single Primary "Ask" Button */}
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[11px] text-slate-400" dir="ltr">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0 ms-auto">
+                <span
+                  className="hidden sm:inline font-mono text-[11px] text-slate-400"
+                  dir="ltr"
+                >
                   {input.length.toLocaleString()} /{" "}
                   {MAX_QUERY_CHARS.toLocaleString()}
                 </span>
@@ -692,17 +695,17 @@ export function ChatPanel({
                   type="button"
                   disabled={isSending || !input.trim()}
                   onClick={() => void submitCurrent()}
-                  className="btn-jet inline-flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-semibold cursor-pointer"
+                  className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-semibold cursor-pointer"
                 >
                   {isSending ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
                       <span>{t.chat.streaming}</span>
                     </>
                   ) : (
                     <>
                       <span>{t.chat.askSources}</span>
-                      <ArrowUp className="h-3.5 w-3.5" />
+                      <ArrowUp className="h-3.5 w-3.5 shrink-0" />
                     </>
                   )}
                 </button>

@@ -420,26 +420,26 @@ export function SourcesSidebar({
                   </div>
 
                   {/* Row actions — semantic hover colors */}
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  <div className="flex flex-wrap items-center justify-end gap-0.5 shrink-0">
                     {isConfirming ? (
                       <>
                         <button
                           type="button"
                           onClick={() => handleConfirmDelete(doc.id)}
-                          className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 cursor-pointer"
+                          className="whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 cursor-pointer"
                         >
                           {t.sources.deleteBtn}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
-                          className="rounded-lg px-1.5 py-1 text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+                          className="whitespace-nowrap rounded-lg px-1.5 py-1 text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
                         >
                           {t.sources.cancelBtn}
                         </button>
                       </>
                     ) : (
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={() =>
@@ -473,14 +473,12 @@ export function SourcesSidebar({
         <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[68%] flex flex-col bg-white/88 backdrop-blur-2xl border-t border-white/80 shadow-[0_-14px_38px_-10px_rgba(15,23,42,0.16)]">
           <div className="flex items-center justify-between gap-2 bg-white/60 px-5 py-3 border-b border-slate-200/70">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">
                   {t.sources.verifiedPreviewLabel}
                 </p>
                 {previewDoc.confidence && (
-                  <span
-                    className="font-mono text-[10px] text-[#253237]"
-                  >
+                  <span className="font-mono text-[10px] text-[#253237]">
                     ·{" "}
                     {previewDoc.confidence === "verbatim"
                       ? isHe
@@ -503,7 +501,7 @@ export function SourcesSidebar({
             <button
               type="button"
               onClick={onClosePreview}
-              className="rounded-md p-1 text-[#253237] hover:bg-white/60 transition-colors cursor-pointer"
+              className="shrink-0 rounded-md p-1 text-[#253237] hover:bg-white/60 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -523,7 +521,7 @@ export function SourcesSidebar({
 
           <div
             dir="auto"
-            className="px-5 py-4 overflow-y-auto text-xs leading-relaxed text-[#253237]/90 font-mono whitespace-pre-wrap bg-[#f8fafb]"
+            className="px-5 py-4 overflow-y-auto text-xs leading-relaxed text-[#253237]/90 font-mono whitespace-pre-wrap break-words bg-[#f8fafb]"
           >
             {previewDoc.loading ? (
               <div className="flex items-center gap-2 py-4 text-[#5c6b73]">
@@ -541,11 +539,64 @@ export function SourcesSidebar({
                 let idx = lowerFull.indexOf(lowerQuote);
                 let matchLen = quote.length;
 
-                // Fallback to matching the first 45 characters of the quote if whitespace/wrapping differs
-                if (idx === -1 && quote.length > 36) {
-                  const prefix = lowerQuote.slice(0, 42);
-                  idx = lowerFull.indexOf(prefix);
-                  matchLen = Math.min(quote.length, full.length - idx);
+                // Normalized whitespace/punctuation lookup mapped back to exact original offsets
+                if (idx === -1) {
+                  const normChars: string[] = [];
+                  const normMap: number[] = [];
+                  let prevSpace = true;
+                  for (let i = 0; i < full.length; i++) {
+                    let ch = full[i];
+                    if (/[\u200B-\u200F\u202A-\u202E\uFEFF]/.test(ch)) continue;
+                    if (/\s/.test(ch)) {
+                      if (!prevSpace) {
+                        normChars.push(" ");
+                        normMap.push(i);
+                        prevSpace = true;
+                      }
+                      continue;
+                    }
+                    if (ch === "“" || ch === "”" || ch === "„" || ch === "״")
+                      ch = '"';
+                    else if (ch === "‘" || ch === "’" || ch === "׳") ch = "'";
+                    else if (ch === "–" || ch === "—") ch = "-";
+                    normChars.push(ch.toLowerCase());
+                    normMap.push(i);
+                    prevSpace = false;
+                  }
+                  const normFull = normChars.join("");
+                  const normQuote = quote
+                    .replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "")
+                    .replace(/[“”„״]/g, '"')
+                    .replace(/[‘’׳]/g, "'")
+                    .replace(/[–—]/g, "-")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .toLowerCase();
+
+                  let normPos = normQuote.length >= 4 ? normFull.indexOf(normQuote) : -1;
+                  let normMatchLen = normQuote.length;
+
+                  if (normPos === -1 && normQuote.length > 36) {
+                    const prefix = normQuote.slice(0, 36);
+                    normPos = normFull.indexOf(prefix);
+                    normMatchLen = Math.min(normQuote.length, normFull.length - normPos);
+                  }
+                  if (normPos === -1 && normQuote.length > 20) {
+                    const shortPrefix = normQuote.slice(0, 20);
+                    normPos = normFull.indexOf(shortPrefix);
+                    normMatchLen = Math.min(normQuote.length, normFull.length - normPos);
+                  }
+
+                  if (normPos !== -1) {
+                    const origStart = normMap[normPos] ?? 0;
+                    const lastIdx = Math.min(
+                      normPos + normMatchLen - 1,
+                      normMap.length - 1
+                    );
+                    const origEnd = (normMap[lastIdx] ?? origStart) + 1;
+                    idx = origStart;
+                    matchLen = Math.max(1, origEnd - origStart);
+                  }
                 }
 
                 if (idx === -1) {
@@ -571,7 +622,7 @@ export function SourcesSidebar({
                     {before}
                     <mark
                       ref={highlightMarkRef}
-                      className="rounded-sm bg-[#e0fbfc] text-[#253237] px-1 py-0.5 font-semibold"
+                      className="rounded-sm bg-teal-200/80 text-slate-950 px-1 py-0.5 font-semibold ring-1 ring-teal-500/40"
                     >
                       {highlighted}
                     </mark>

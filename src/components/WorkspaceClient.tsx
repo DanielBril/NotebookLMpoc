@@ -348,7 +348,12 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     });
 
     try {
-      const res = await fetch(`/api/documents/${docId}`, { cache: "no-store" });
+      const qParam = verifyMeta?.matchedQuote?.trim()
+        ? `?q=${encodeURIComponent(verifyMeta.matchedQuote.trim().slice(0, 180))}`
+        : "";
+      const res = await fetch(`/api/documents/${docId}${qParam}`, {
+        cache: "no-store",
+      });
       if (res.status === 403) {
         const errJson = (await res.json().catch(() => ({}))) as {
           accountBlocked?: boolean;
@@ -657,7 +662,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden glass-canvas">
+    <div className="h-dvh w-full max-w-full flex flex-col overflow-hidden glass-canvas">
       <Navbar
         mode="workspace"
         user={user}
@@ -665,7 +670,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
       />
 
-      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+      <div className="flex-1 flex min-h-0 min-w-0 relative overflow-hidden">
         <ChatPanel
           messages={messages}
           activeDocuments={activeDocuments}
@@ -698,7 +703,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
         {/* Smoothly Animated Collapsible Sources Sidebar (Desktop & Mobile) */}
         <div
           aria-hidden={!sidebarOpen}
-          className={`fixed inset-y-0 end-0 top-14 z-20 w-full max-w-[385px] lg:static lg:inset-auto lg:top-auto lg:max-w-none h-full overflow-hidden transition-[width,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-14 bottom-0 end-0 z-20 w-full max-w-[min(385px,100vw)] lg:static lg:inset-auto lg:top-auto lg:bottom-auto lg:h-full lg:max-w-none shrink-0 overflow-hidden transition-[width,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             sidebarOpen
               ? "translate-x-0 opacity-100 lg:w-[350px] xl:w-[385px]"
               : "translate-x-full opacity-0 pointer-events-none lg:translate-x-6 lg:w-0"

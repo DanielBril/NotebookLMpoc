@@ -304,14 +304,14 @@ export function StudioModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-md p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-md p-3 sm:p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="animate-modal-in w-full max-w-3xl max-h-[88vh] flex flex-col rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/75 shadow-[0_24px_60px_-14px_rgba(15,23,42,0.35)] overflow-hidden">
+      <div className="animate-modal-in w-full max-w-3xl max-h-[90dvh] flex flex-col rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/75 shadow-[0_24px_60px_-14px_rgba(15,23,42,0.35)] overflow-hidden">
         {/* Top Bar */}
-        <div className="px-5 py-4 bg-[#0f172a]/92 backdrop-blur-xl text-white flex items-center justify-between gap-3 shrink-0 border-b border-white/10">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-[#0f172a]/92 backdrop-blur-xl text-white flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 shrink-0 border-b border-white/10">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-200 border border-teal-400/30">
               {mode === "contradictions" ? (
                 <GitCompareArrows className="h-4.5 w-4.5" />
@@ -329,22 +329,22 @@ export function StudioModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ms-auto">
             {briefData && !isLoading && (
               <button
                 id="export-brief-pdf-btn"
                 type="button"
                 onClick={() => handleExportExecutiveBriefPdf(briefData)}
-                className="interactive-chip inline-flex items-center gap-1.5 rounded-xl bg-[#e0fbfc] hover:bg-[#c2dfe3] px-3 py-1.5 text-xs font-semibold text-[#253237] cursor-pointer"
+                className="interactive-chip inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl bg-[#e0fbfc] hover:bg-[#c2dfe3] px-3 py-1.5 text-xs font-semibold text-[#253237] cursor-pointer"
               >
-                <FileDown className="h-3.5 w-3.5" />
+                <FileDown className="h-3.5 w-3.5 shrink-0" />
                 <span>{isHe ? "הורדה / הדפסת PDF" : "Export as PDF"}</span>
               </button>
             )}
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="shrink-0 rounded-lg p-1.5 text-[#c2dfe3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -352,11 +352,11 @@ export function StudioModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-[#f2fafb]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 bg-[#f2fafb]">
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center gap-3 text-[#5c6b73]">
               <Loader2 className="h-7 w-7 animate-spin text-[#253237]" />
-              <p className="text-sm font-semibold text-[#253237]">
+              <p className="text-sm font-semibold text-[#253237] text-center">
                 {isHe
                   ? "מנתח את המקורות המסומנים ומייצר תוצר מבוסס…"
                   : "Analyzing checked sources and synthesizing grounded artifact…"}
@@ -365,7 +365,7 @@ export function StudioModal({
           ) : error ? (
             <div className="rounded-xl bg-[#253237] p-4 text-xs text-[#e0fbfc] flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#c2dfe3]" />
-              <span>{error}</span>
+              <span className="break-words">{error}</span>
             </div>
           ) : contradictionsData ? (
             <div className="space-y-4" dir="auto">
@@ -391,20 +391,23 @@ export function StudioModal({
                       key={idx}
                       className="rounded-2xl bg-white border border-[#9db4c0]/60 shadow-xs overflow-hidden"
                     >
-                      <div className="px-4 py-2.5 bg-[#c2dfe3]/60 border-b border-[#9db4c0]/45 flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-[#253237]">
+                      <div className="px-4 py-2.5 bg-[#c2dfe3]/60 border-b border-[#9db4c0]/45 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[#253237] min-w-0 break-words">
                           {c.topic}
                         </span>
-                        <span className="rounded-full bg-[#253237] px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#e0fbfc]">
+                        <span className="shrink-0 rounded-full bg-[#253237] px-2.5 py-0.5 text-[10px] font-bold uppercase text-[#e0fbfc]">
                           {c.severity}
                         </span>
                       </div>
 
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* Source A */}
-                        <div className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/45 space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-[11px] font-bold text-[#253237]">
+                        <div className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/45 space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                            <span
+                              title={`[${c.sourceA.index}] ${c.sourceA.filename}`}
+                              className="font-mono text-[11px] font-bold text-[#253237] min-w-0 truncate flex-1"
+                            >
                               [{c.sourceA.index}] {c.sourceA.filename}
                             </span>
                             {onInspectSource &&
@@ -417,26 +420,29 @@ export function StudioModal({
                                       c.sourceA.quote
                                     )
                                   }
-                                  className="text-[11px] font-semibold text-[#5c6b73] hover:text-[#253237] underline cursor-pointer"
+                                  className="shrink-0 whitespace-nowrap text-[11px] font-semibold text-teal-700 hover:text-teal-900 underline cursor-pointer"
                                 >
                                   {isHe ? "הצג במקור" : "Verify Quote"}
                                 </button>
                               )}
                           </div>
-                          <p className="text-xs font-medium text-[#253237]">
+                          <p className="text-xs font-medium text-[#253237] break-words">
                             {c.sourceA.claim}
                           </p>
                           {c.sourceA.quote && (
-                            <blockquote className="text-[11px] font-mono text-[#5c6b73] border-s-2 border-[#5c6b73] ps-2 italic">
+                            <blockquote className="text-[11px] font-mono text-[#5c6b73] border-s-2 border-[#5c6b73] ps-2 italic break-words">
                               &ldquo;{c.sourceA.quote}&rdquo;
                             </blockquote>
                           )}
                         </div>
 
                         {/* Source B */}
-                        <div className="rounded-xl bg-[#e0fbfc]/45 p-3 border border-[#9db4c0]/55 space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-[11px] font-bold text-[#253237]">
+                        <div className="rounded-xl bg-[#e0fbfc]/45 p-3 border border-[#9db4c0]/55 space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                            <span
+                              title={`[${c.sourceB.index}] ${c.sourceB.filename}`}
+                              className="font-mono text-[11px] font-bold text-[#253237] min-w-0 truncate flex-1"
+                            >
                               [{c.sourceB.index}] {c.sourceB.filename}
                             </span>
                             {onInspectSource &&
@@ -449,17 +455,17 @@ export function StudioModal({
                                       c.sourceB.quote
                                     )
                                   }
-                                  className="text-[11px] font-semibold text-[#5c6b73] hover:text-[#253237] underline cursor-pointer"
+                                  className="shrink-0 whitespace-nowrap text-[11px] font-semibold text-teal-700 hover:text-teal-900 underline cursor-pointer"
                                 >
                                   {isHe ? "הצג במקור" : "Verify Quote"}
                                 </button>
                               )}
                           </div>
-                          <p className="text-xs font-medium text-[#253237]">
+                          <p className="text-xs font-medium text-[#253237] break-words">
                             {c.sourceB.claim}
                           </p>
                           {c.sourceB.quote && (
-                            <blockquote className="text-[11px] font-mono text-[#5c6b73] border-s-2 border-[#253237] ps-2 italic">
+                            <blockquote className="text-[11px] font-mono text-[#5c6b73] border-s-2 border-[#253237] ps-2 italic break-words">
                               &ldquo;{c.sourceB.quote}&rdquo;
                             </blockquote>
                           )}
@@ -467,7 +473,7 @@ export function StudioModal({
                       </div>
 
                       {c.resolutionNote && (
-                        <div className="px-4 py-2.5 bg-[#f2fafb] border-t border-[#9db4c0]/35 text-xs text-[#5c6b73]">
+                        <div className="px-4 py-2.5 bg-[#f2fafb] border-t border-[#9db4c0]/35 text-xs text-[#5c6b73] break-words">
                           <strong className="text-[#253237]">
                             {isHe ? "הבחנה:" : "Analysis:"}
                           </strong>{" "}
@@ -498,7 +504,9 @@ export function StudioModal({
                     </p>
                     <ul className="space-y-1.5 text-xs text-[#253237] list-disc ps-5">
                       {contradictionsData.alignments.map((a, i) => (
-                        <li key={i}>{a}</li>
+                        <li key={i} className="break-words">
+                          {a}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -533,15 +541,15 @@ export function StudioModal({
                         key={idx}
                         className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/40 space-y-1"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-[#253237]">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-[#253237] min-w-0 break-words">
                             {f.heading}
                           </span>
-                          <span className="rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#253237] border border-[#9db4c0]/55">
+                          <span className="max-w-full truncate rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#253237] border border-[#9db4c0]/55 shrink-0">
                             {f.citation}
                           </span>
                         </div>
-                        <p className="text-xs text-[#5c6b73] leading-relaxed">
+                        <p className="text-xs text-[#5c6b73] leading-relaxed break-words">
                           {f.detail}
                         </p>
                       </div>
@@ -563,17 +571,17 @@ export function StudioModal({
                       {briefData.metricsAndDates.map((m, idx) => (
                         <div
                           key={idx}
-                          className="rounded-xl bg-[#e0fbfc]/45 p-3 border border-[#9db4c0]/50 flex items-center justify-between gap-2"
+                          className="rounded-xl bg-[#e0fbfc]/45 p-3 border border-[#9db4c0]/50 flex flex-wrap items-center justify-between gap-2 min-w-0"
                         >
-                          <div>
-                            <p className="text-[11px] text-[#5c6b73] font-medium">
+                          <div className="min-w-0">
+                            <p className="text-[11px] text-[#5c6b73] font-medium break-words">
                               {m.item}
                             </p>
-                            <p className="text-xs font-bold text-[#253237]">
+                            <p className="text-xs font-bold text-[#253237] break-words">
                               {m.value}
                             </p>
                           </div>
-                          <span className="font-mono text-[10px] text-[#5c6b73]">
+                          <span className="font-mono text-[10px] text-[#5c6b73] truncate max-w-full">
                             {m.citation}
                           </span>
                         </div>
@@ -594,17 +602,17 @@ export function StudioModal({
                     {briefData.actionItems.map((a, idx) => (
                       <div
                         key={idx}
-                        className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/40 flex items-start justify-between gap-2.5"
+                        className="rounded-xl bg-[#f2fafb] p-3 border border-[#9db4c0]/40 flex flex-wrap items-start justify-between gap-2.5"
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
                           <span className="rounded bg-[#253237] px-1.5 py-0.5 text-[10px] font-bold text-[#e0fbfc] shrink-0">
                             {a.priority}
                           </span>
-                          <span className="text-xs text-[#253237]">
+                          <span className="text-xs text-[#253237] break-words">
                             {a.action}
                           </span>
                         </div>
-                        <span className="font-mono text-[10px] text-[#5c6b73] shrink-0">
+                        <span className="font-mono text-[10px] text-[#5c6b73] shrink-0 max-w-full truncate">
                           {a.citation}
                         </span>
                       </div>
@@ -615,8 +623,8 @@ export function StudioModal({
             </div>
           ) : quizData ? (
             <div className="space-y-4" dir="auto">
-              <div className="rounded-xl bg-white p-4 border border-[#9db4c0]/55 flex items-center justify-between">
-                <div>
+              <div className="rounded-xl bg-white p-4 border border-[#9db4c0]/55 flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
                   <h4 className="text-sm font-bold text-[#253237]">
                     {quizData.title}
                   </h4>
@@ -626,7 +634,7 @@ export function StudioModal({
                       : "Select an answer for each question to reveal the exact verifying quote from the source"}
                   </p>
                 </div>
-                <span className="rounded-full bg-[#253237] px-3 py-1 font-mono text-xs font-semibold text-[#e0fbfc]">
+                <span className="shrink-0 rounded-full bg-[#253237] px-3 py-1 font-mono text-xs font-semibold text-[#e0fbfc]">
                   {
                     Object.entries(selectedAnswers).filter(
                       ([qIdx, ans]) =>
@@ -646,11 +654,11 @@ export function StudioModal({
                     key={q.id || qIdx}
                     className="rounded-2xl bg-white p-4 border border-[#9db4c0]/55 shadow-xs space-y-3"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-bold text-[#253237]">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="text-xs font-bold text-[#253237] min-w-0 flex-1 break-words">
                         {qIdx + 1}. {q.question}
                       </p>
-                      <span className="rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#253237] border border-[#9db4c0]/55 shrink-0">
+                      <span className="max-w-full truncate rounded-full bg-[#e0fbfc] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#253237] border border-[#9db4c0]/55 shrink-0">
                         {q.citation}
                       </span>
                     </div>
@@ -688,7 +696,7 @@ export function StudioModal({
                             }}
                             className={`rounded-xl px-3.5 py-2.5 text-xs text-start border transition-all cursor-pointer flex items-center justify-between gap-2 ${btnStyle}`}
                           >
-                            <span>{opt}</span>
+                            <span className="break-words min-w-0">{opt}</span>
                             {isRevealed && isCorrect && (
                               <CheckCircle2 className="h-4 w-4 text-[#e0fbfc] shrink-0" />
                             )}
@@ -708,10 +716,12 @@ export function StudioModal({
                               ? "לא מדויק — להלן ההסבר מתוך המקור:"
                               : "Not quite — here is the grounded explanation:"}
                         </p>
-                        <p className="text-[#5c6b73]">{q.explanation}</p>
+                        <p className="text-[#5c6b73] break-words">
+                          {q.explanation}
+                        </p>
                         {q.sourceQuote && (
-                          <div className="pt-1 flex items-center justify-between gap-2">
-                            <blockquote className="font-mono text-[11px] text-[#253237] border-s-2 border-[#253237] ps-2 italic">
+                          <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                            <blockquote className="font-mono text-[11px] text-[#253237] border-s-2 border-[#253237] ps-2 italic min-w-0 flex-1 break-words">
                               &ldquo;{q.sourceQuote}&rdquo;
                             </blockquote>
                             {onInspectSource &&
@@ -724,7 +734,7 @@ export function StudioModal({
                                       q.sourceQuote
                                     )
                                   }
-                                  className="text-[11px] font-semibold text-[#253237] underline shrink-0 cursor-pointer"
+                                  className="text-[11px] font-semibold text-teal-800 hover:text-teal-950 underline shrink-0 whitespace-nowrap cursor-pointer"
                                 >
                                   {isHe ? "הדגש במקור" : "Highlight in Source"}
                                 </button>
