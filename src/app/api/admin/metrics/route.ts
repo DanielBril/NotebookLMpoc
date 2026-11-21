@@ -644,7 +644,7 @@ export async function GET() {
     },
     kpis: {
       totalUsers: users.length,
-      nonAdminUsers: users.filter((u) => u.role !== Role.ADMIN).length,
+      nonAdminUsers: users.filter((u) => u.role === Role.USER).length,
       blockedUsers,
       newUsers24h,
       totalFilesUploaded: documents.length,

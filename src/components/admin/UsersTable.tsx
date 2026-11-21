@@ -315,16 +315,21 @@ export function UsersTable({
                     >
                       <td className="py-3 pe-4">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {u.name}
-                            {(u.role === "ADMIN" || u.role === "DEVELOPER") && (
-                              <span className="ms-2 font-mono text-[10px] uppercase text-teal-700 font-semibold">
-                                {u.role === "ADMIN"
-                                  ? t.navbar.adminBadge
-                                  : "DEV"}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-medium text-slate-900 truncate">
+                              {u.name}
+                            </span>
+                            {u.role === "ADMIN" && (
+                              <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-teal-800 shrink-0">
+                                {isHe ? "מנהל" : "ADMIN"}
                               </span>
                             )}
-                          </p>
+                            {u.role === "DEVELOPER" && (
+                              <span className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-indigo-800 shrink-0">
+                                {isHe ? "מפתח" : "DEVELOPER"}
+                              </span>
+                            )}
+                          </div>
                           <p
                             className="text-[11px] font-mono text-slate-400"
                             dir="ltr"
@@ -424,8 +429,14 @@ export function UsersTable({
 
                       <td className="py-3 ps-3 text-end whitespace-nowrap">
                         {isSelfOrAdmin ? (
-                          <span className="text-[11px] text-slate-400">
-                            {t.admin.protectedAdmin}
+                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                            {u.role === "DEVELOPER"
+                              ? isHe
+                                ? "חשבון מפתח מוגן"
+                                : "Protected Developer"
+                              : isHe
+                                ? "חשבון מנהל מוגן"
+                                : "Protected Admin"}
                           </span>
                         ) : u.isBlocked ? (
                           <div className="inline-flex flex-wrap items-center justify-end gap-1.5">

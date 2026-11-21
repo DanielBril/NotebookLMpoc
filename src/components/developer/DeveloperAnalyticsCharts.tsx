@@ -3,6 +3,18 @@
 import { useState } from "react";
 import { BarChart3, FileDown } from "lucide-react";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   formatLatencySeconds,
   formatTokensCompact,
   formatUsd,
@@ -16,7 +28,30 @@ export type DeveloperGraphId =
   | "overallSuccessRate"
   | "successRateByUser"
   | "avgLatencySecByModel"
-  | "costByModel";
+  | "costByModel"
+  | "peakUsageHours"
+  | "weeklyVolumeLatency";
+
+export interface PeakHoursAnalyticsData {
+  hourlyDistribution: Array<{
+    hour: number;
+    label: string;
+    queries: number;
+    tokens: number;
+    isPeak: boolean;
+  }>;
+  peakWindowSummary: {
+    label: string;
+    sharePercent: number;
+    peakQueries: number;
+  } | null;
+  dayOfWeekDistribution: Array<{
+    day: string;
+    queries: number;
+    tokens: number;
+    avgLatencyMs: number;
+  }>;
+}
 
 export interface DeveloperAnalyticsPayload {
   filesByType: Array<{
@@ -99,6 +134,7 @@ export interface DeveloperPdfReportInput {
     avgLatencyMs: number;
   }>;
   analytics: DeveloperAnalyticsPayload;
+  peakHours?: PeakHoursAnalyticsData;
   decisionLogs: Array<{
     username: string;
     status: string;
@@ -175,6 +211,20 @@ export const GRAPH_OPTIONS: GraphOptionMeta[] = [
     subtitleEn: "Cumulative API spend and call volume by model",
     subtitleHe: "עלות API מצטברת וכמות קריאות לכל מודל",
   },
+  {
+    id: "peakUsageHours",
+    labelEn: "24-Hour Activity & Peak Hours",
+    labelHe: "שעות פעילות ושיא (24 שעות UTC)",
+    subtitleEn: "Hourly query distribution highlighting top peak hours",
+    subtitleHe: "התפלגות שאילתות לפי שעה עם הדגשת שעות השיא",
+  },
+  {
+    id: "weeklyVolumeLatency",
+    labelEn: "Weekly Volume & Latency (Seconds)",
+    labelHe: "נפח שאילתות והשהיה שבועית (שניות)",
+    subtitleEn: "Queries and mean response latency in seconds by weekday",
+    subtitleHe: "כמות שאילתות וזמן תגובה ממוצע בשניות לפי יום בשבוע",
+  },
 ];
 
 interface BarRow {
@@ -212,6 +262,16 @@ const STATUS_COLORS: Record<string, string> = {
   ERROR: "#991b1b",
 };
 
+const HEBREW_DAYS: Record<string, string> = {
+  Sun: "א׳",
+  Mon: "ב׳",
+  Tue: "ג׳",
+  Wed: "ד׳",
+  Thu: "ה׳",
+  Fri: "ו׳",
+  Sat: "ש׳",
+};
+
 function formatBytesShort(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -229,7 +289,8 @@ function escapeHtml(str: string): string {
 function buildChartModel(
   graphId: DeveloperGraphId,
   analytics: DeveloperAnalyticsPayload,
-  isHe: boolean
+  isHe: boolean,
+  peakHours?: PeakHoursAnalyticsData
 ): {
   summaryBadge: string;
   rows: BarRow[];
@@ -268,7 +329,8 @@ function buildChartModel(
           value: r.count,
           displayValue: `${r.count}`,
           sublabel: formatBytesShort(r.bytes),
-          pctWidth: r.count > 0 ? Math.max(6, Math.round((r.count / max) * 100)) : 2,
+          pctWidth:
+            r.count > 0 ? Math.max(6, Math.round((r.count / max) * 100)) : 2,
           colorHex:
             r.count >= analytics.avgFilesPerUser ? PALETTE_TEAL : PALETTE_SLATE,
         })),
@@ -403,6 +465,50 @@ function buildChartModel(
         emptyText: isHe ? "אין נתוני עלות." : "No cost data recorded yet.",
       };
     }
+
+    case "peakUsageHours": {
+      const activeHours = (peakHours?.hourlyDistribution ?? []).filter(
+        (h) => h.queries > 0
+      );
+      const max = Math.max(1, ...activeHours.map((h) => h.queries));
+      return {
+        summaryBadge: peakHours?.peakWindowSummary
+          ? `${peakHours.peakWindowSummary.label} (${peakHours.peakWindowSummary.sharePercent}%)`
+          : isHe
+            ? "ממתין לנתונים"
+            : "Awaiting data",
+        rows: activeHours.slice(0, 12).map((h) => ({
+          label: `${h.label} UTC`,
+          value: h.queries,
+          displayValue: `${h.queries} ${isHe ? "שאילתות" : "q"}`,
+          sublabel: `${formatTokensCompact(h.tokens)} tok`,
+          pctWidth: Math.max(6, Math.round((h.queries / max) * 100)),
+          colorHex: h.isPeak ? PALETTE_TEAL : PALETTE_SLATE,
+        })),
+        emptyText: isHe ? "אין נתוני פעילות שעתיים." : "No hourly activity yet.",
+      };
+    }
+
+    case "weeklyVolumeLatency": {
+      const days = peakHours?.dayOfWeekDistribution ?? [];
+      const totalWeek = days.reduce((s, d) => s + d.queries, 0);
+      const max = Math.max(1, ...days.map((d) => d.queries));
+      return {
+        summaryBadge: isHe
+          ? `${totalWeek} שאילתות השבוע`
+          : `${totalWeek} weekly queries`,
+        rows: days.map((d) => ({
+          label: isHe ? (HEBREW_DAYS[d.day] ?? d.day) : d.day,
+          value: d.queries,
+          displayValue: `${d.queries} · ${formatLatencySeconds(d.avgLatencyMs)}`,
+          sublabel: `${formatTokensCompact(d.tokens)} tok`,
+          pctWidth:
+            d.queries > 0 ? Math.max(6, Math.round((d.queries / max) * 100)) : 2,
+          colorHex: PALETTE_BLUE,
+        })),
+        emptyText: isHe ? "אין נתוני פעילות שבועיים." : "No weekly data yet.",
+      };
+    }
   }
 }
 
@@ -492,11 +598,12 @@ function DonutSvg({
 function buildPdfChartHtml(
   graphId: DeveloperGraphId,
   analytics: DeveloperAnalyticsPayload,
-  isHe: boolean
+  isHe: boolean,
+  peakHours?: PeakHoursAnalyticsData
 ): string {
   const meta =
     GRAPH_OPTIONS.find((g) => g.id === graphId) ?? GRAPH_OPTIONS[0];
-  const model = buildChartModel(graphId, analytics, isHe);
+  const model = buildChartModel(graphId, analytics, isHe, peakHours);
   const title = isHe ? meta.labelHe : meta.labelEn;
 
   const barsHtml =
@@ -575,8 +682,8 @@ export function exportDeveloperReportToPdf(
   <meta charset="utf-8" />
   <title>${escapeHtml(
     isHe
-      ? "ContextLM — דוח דיאגנוסטיקה וגרפים למפתח"
-      : "ContextLM — Developer Diagnostics & Analytics Report"
+      ? "ContextLM — דוח ניהול, ביצועים וגרפים"
+      : "ContextLM — Admin Analytics & Telemetry Report"
   )}</title>
   <style>
     @page { size: A4; margin: 14mm; }
@@ -708,8 +815,8 @@ export function exportDeveloperReportToPdf(
     <div>
       <h1>${escapeHtml(
         isHe
-          ? "דוח דיאגנוסטיקה, ביצועים וגרפים — ContextLM"
-          : "ContextLM Developer Diagnostics & Analytics Report"
+          ? "דוח ניהול, ביצועים וגרפים — ContextLM"
+          : "ContextLM Admin Analytics & Telemetry Report"
       )}</h1>
       <div class="meta">${escapeHtml(new Date(report.generatedAt).toLocaleString(isHe ? "he-IL" : "en-US"))}</div>
     </div>
@@ -727,7 +834,7 @@ export function exportDeveloperReportToPdf(
     <div class="kpi">
       <div class="k-label">${escapeHtml(isHe ? "השהיה P50 / P95" : "Latency P50 / P95")}</div>
       <div class="k-val">${escapeHtml(formatLatencySeconds(report.economics.p50LatencyMs))} / ${escapeHtml(formatLatencySeconds(report.economics.p95LatencyMs))}</div>
-      <div class="k-sub">P99 ${escapeHtml(formatLatencySeconds(report.economics.p99LatencyMs))} · DB ${escapeHtml(formatLatencySeconds(report.dbPingMs))}</div>
+      <div class="k-sub">P99 ${escapeHtml(formatLatencySeconds(report.economics.p99LatencyMs))}</div>
     </div>
     <div class="kpi">
       <div class="k-label">${escapeHtml(isHe ? "עלות וטוקנים" : "Cost & Tokens")}</div>
@@ -742,8 +849,8 @@ export function exportDeveloperReportToPdf(
   </div>
 
   <div class="charts-grid">
-    ${buildPdfChartHtml(graph1, report.analytics, isHe)}
-    ${buildPdfChartHtml(graph2, report.analytics, isHe)}
+    ${buildPdfChartHtml(graph1, report.analytics, isHe, report.peakHours)}
+    ${buildPdfChartHtml(graph2, report.analytics, isHe, report.peakHours)}
   </div>
 
   ${
@@ -771,13 +878,13 @@ export function exportDeveloperReportToPdf(
   ${
     decisionsHtml
       ? `<div class="section">
-          <h2>${escapeHtml(isHe ? "יומן החלטות אחרונות (כולל הודעת משתמש)" : "Recent Decision Audit (With Triggering User Messages)")}</h2>
+          <h2>${escapeHtml(isHe ? "אירועי אבטחה אחרונים" : "Recent Flagged Security Events")}</h2>
           <table>
             <thead>
               <tr>
                 <th>Status</th>
                 <th>User</th>
-                <th>${escapeHtml(isHe ? "הודעת המשתמש" : "User Message")}</th>
+                <th>${escapeHtml(isHe ? "הודעה שסומנה" : "Flagged Text")}</th>
                 <th>${escapeHtml(isHe ? "סיבה" : "Reason")}</th>
                 <th class="num">Latency</th>
               </tr>
@@ -803,6 +910,7 @@ export function exportDeveloperReportToPdf(
 
 interface DeveloperAnalyticsChartsProps {
   analytics: DeveloperAnalyticsPayload;
+  peakHours?: PeakHoursAnalyticsData;
   reportData: DeveloperPdfReportInput;
   isHe: boolean;
   graph1: DeveloperGraphId;
@@ -816,17 +924,19 @@ function SingleAnalyticsCard({
   selectedId,
   onSelect,
   analytics,
+  peakHours,
   isHe,
 }: {
   slotLabel: string;
   selectedId: DeveloperGraphId;
   onSelect: (id: DeveloperGraphId) => void;
   analytics: DeveloperAnalyticsPayload;
+  peakHours?: PeakHoursAnalyticsData;
   isHe: boolean;
 }) {
   const meta =
     GRAPH_OPTIONS.find((g) => g.id === selectedId) ?? GRAPH_OPTIONS[0];
-  const model = buildChartModel(selectedId, analytics, isHe);
+  const model = buildChartModel(selectedId, analytics, isHe, peakHours);
   const hasNonZeroData = model.rows.some((r) => r.value > 0);
 
   return (
@@ -863,7 +973,148 @@ function SingleAnalyticsCard({
         </span>
       </div>
 
-      {!hasNonZeroData ? (
+      {selectedId === "peakUsageHours" && peakHours ? (
+        <div className="space-y-2.5 pt-1" dir="ltr">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={peakHours.hourlyDistribution}
+                margin={{ top: 6, right: 6, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="rgba(15,23,42,0.07)"
+                />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  interval={3}
+                  axisLine={{ stroke: "rgba(15,23,42,0.12)" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  cursor={{ fill: "rgba(13, 148, 136, 0.06)" }}
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid rgba(15,23,42,0.12)",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    color: "#0f172a",
+                  }}
+                />
+                <Bar dataKey="queries" radius={[3, 3, 0, 0]} maxBarSize={18}>
+                  {peakHours.hourlyDistribution.map((entry) => (
+                    <Cell
+                      key={`h-${entry.hour}`}
+                      fill={entry.isPeak ? PALETTE_TEAL : "#cbd5e1"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-xs bg-teal-600" />
+              {isHe ? "שעות שיא" : "Peak hours"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-xs bg-slate-300" />
+              {isHe ? "שעות רגילות" : "Standard"}
+            </span>
+          </div>
+        </div>
+      ) : selectedId === "weeklyVolumeLatency" && peakHours ? (
+        <div className="space-y-2.5 pt-1" dir="ltr">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart
+                data={peakHours.dayOfWeekDistribution.map((d) => ({
+                  ...d,
+                  localizedDay: isHe ? (HEBREW_DAYS[d.day] ?? d.day) : d.day,
+                  avgLatencySec: Number((d.avgLatencyMs / 1000).toFixed(2)),
+                }))}
+                margin={{ top: 6, right: 4, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="rgba(15,23,42,0.07)"
+                />
+                <XAxis
+                  dataKey="localizedDay"
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  axisLine={{ stroke: "rgba(15,23,42,0.12)" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  yAxisId="left"
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  unit="s"
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid rgba(15,23,42,0.12)",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    color: "#0f172a",
+                  }}
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="queries"
+                  name={isHe ? "שאילתות" : "Queries"}
+                  fill="#99f6e4"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={22}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="avgLatencySec"
+                  name={isHe ? "השהיה (שניות)" : "Latency (s)"}
+                  stroke={PALETTE_BLUE}
+                  strokeWidth={2}
+                  dot={{
+                    r: 3,
+                    fill: "#ffffff",
+                    stroke: PALETTE_BLUE,
+                    strokeWidth: 1.5,
+                  }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-xs bg-teal-200" />
+              {isHe ? "נפח שאילתות" : "Query volume"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-white border-[1.5px] border-blue-600" />
+              {isHe ? "השהיה ממוצעת (שניות)" : "Avg latency (s)"}
+            </span>
+          </div>
+        </div>
+      ) : !hasNonZeroData ? (
         <p
           dir={isHe ? "rtl" : "ltr"}
           className="py-10 text-center text-xs text-slate-400"
@@ -941,6 +1192,7 @@ function SingleAnalyticsCard({
 
 export function DeveloperAnalyticsCharts({
   analytics,
+  peakHours,
   reportData,
   isHe,
   graph1,
@@ -971,15 +1223,13 @@ export function DeveloperAnalyticsCharts({
           <h2 className="text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
             <BarChart3 className="h-4.5 w-4.5 text-teal-600 shrink-0" />
             <span>
-              {isHe
-                ? "גרפים מותאמים אישית וניתוח נתונים"
-                : "Customizable Analytics Graphs"}
+              {isHe ? "גרפים וניתוח נתונים" : "Analytics & Charts"}
             </span>
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             {isHe
-              ? "בחרו כל 2 מדדים להשוואה בזמן אמת וייצאו את הדוח והגרפים ל-PDF."
-              : "Choose any 2 metrics to compare live and export the analytics report to PDF."}
+              ? "בחרו כל 2 גרפים מתוך 10 מדדי מערכת (קבצים, טוקנים, אחוזי הצלחה, שעות שיא, השהיה ועלויות) וייצאו ל-PDF."
+              : "Pick any 2 of 10 live charts (files, tokens, success rates, peak hours, weekly latency, and costs) and export to PDF."}
           </p>
         </div>
 
@@ -1001,6 +1251,7 @@ export function DeveloperAnalyticsCharts({
           selectedId={graph1}
           onSelect={onChangeGraph1}
           analytics={analytics}
+          peakHours={peakHours}
           isHe={isHe}
         />
         <SingleAnalyticsCard
@@ -1008,6 +1259,7 @@ export function DeveloperAnalyticsCharts({
           selectedId={graph2}
           onSelect={onChangeGraph2}
           analytics={analytics}
+          peakHours={peakHours}
           isHe={isHe}
         />
       </div>

@@ -12,18 +12,13 @@ import {
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { KpiGrid, type AdminKpis } from "@/components/admin/KpiGrid";
-import {
-  PeakHoursChart,
-  type DayOfWeekBucket,
-  type HourlyBucket,
-  type PeakWindowSummary,
-} from "@/components/admin/PeakHoursChart";
 import { UsersTable, type AdminUserRow } from "@/components/admin/UsersTable";
 import {
   DeveloperAnalyticsCharts,
   exportDeveloperReportToPdf,
   type DeveloperAnalyticsPayload,
   type DeveloperGraphId,
+  type PeakHoursAnalyticsData,
 } from "@/components/developer/DeveloperAnalyticsCharts";
 import { formatLatencySeconds } from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
@@ -75,9 +70,9 @@ interface AdminMetricsResponse {
     avgLatencyMs: number;
   }>;
   analytics: DeveloperAnalyticsPayload;
-  hourlyDistribution: HourlyBucket[];
-  peakWindowSummary: PeakWindowSummary | null;
-  dayOfWeekDistribution: DayOfWeekBucket[];
+  hourlyDistribution: PeakHoursAnalyticsData["hourlyDistribution"];
+  peakWindowSummary: PeakHoursAnalyticsData["peakWindowSummary"];
+  dayOfWeekDistribution: PeakHoursAnalyticsData["dayOfWeekDistribution"];
   users: AdminUserRow[];
   flaggedDangerousFeed: FlaggedDangerousItem[];
 }
@@ -338,6 +333,11 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
       },
       models: data.models,
       analytics: data.analytics,
+      peakHours: {
+        hourlyDistribution: data.hourlyDistribution,
+        peakWindowSummary: data.peakWindowSummary,
+        dayOfWeekDistribution: data.dayOfWeekDistribution,
+      },
       decisionLogs: data.flaggedDangerousFeed.map((ev) => ({
         username: ev.username,
         status: "BLOCKED_INJECTION",
@@ -555,10 +555,11 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
               )}
             </section>
 
-            {/* Customizable 2-Graph Analytics Section + PDF Export (moved to Admin Portal) */}
+            {/* Single Unified Analytics & Charts Section (All 10 metrics + PDF Export) */}
             {pdfReportData && (
               <DeveloperAnalyticsCharts
                 analytics={data.analytics}
+                peakHours={pdfReportData.peakHours}
                 reportData={pdfReportData}
                 isHe={isHe}
                 graph1={graph1}
@@ -697,12 +698,6 @@ export function AdminDashboardClient({ user }: AdminDashboardClientProps) {
                 onDeleteUserPermanently={handleDeleteUserPermanently}
               />
             </div>
-
-            <PeakHoursChart
-              hourlyDistribution={data.hourlyDistribution}
-              peakWindowSummary={data.peakWindowSummary}
-              dayOfWeekDistribution={data.dayOfWeekDistribution}
-            />
           </>
         )}
       </main>
