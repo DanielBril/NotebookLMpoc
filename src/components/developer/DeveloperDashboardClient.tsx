@@ -362,7 +362,7 @@ export function DeveloperDashboardClient({
     "py-2 pe-4 text-[11px] font-medium text-slate-500 text-start whitespace-nowrap";
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col glass-canvas">
       <Navbar mode="developer" user={user} />
 
       <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">

@@ -304,15 +304,15 @@ export function StudioModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#253237]/55 backdrop-blur-xs p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-md p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="animate-modal-in w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-white border border-[#9db4c0]/60 shadow-2xl overflow-hidden">
+      <div className="animate-modal-in w-full max-w-3xl max-h-[88vh] flex flex-col rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/75 shadow-[0_24px_60px_-14px_rgba(15,23,42,0.35)] overflow-hidden">
         {/* Top Bar */}
-        <div className="px-5 py-4 bg-[#253237] text-[#e0fbfc] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-5 py-4 bg-[#0f172a]/92 backdrop-blur-xl text-white flex items-center justify-between gap-3 shrink-0 border-b border-white/10">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e0fbfc] text-[#253237]">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-200 border border-teal-400/30">
               {mode === "contradictions" ? (
                 <GitCompareArrows className="h-4.5 w-4.5" />
               ) : mode === "brief" ? (

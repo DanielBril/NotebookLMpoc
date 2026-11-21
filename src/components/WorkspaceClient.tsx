@@ -71,6 +71,13 @@ function recomputeSummary(docs: SourceDocumentItem[]): SourcesSummary {
   };
 }
 
+function detectAskedLang(query: string, fallback: "he" | "en"): "he" | "en" {
+  const he = (query.match(/[\u0590-\u05FF]/g) || []).length;
+  const en = (query.match(/[A-Za-z]/g) || []).length;
+  if (he === 0 && en === 0) return fallback;
+  return he >= en ? "he" : "en";
+}
+
 export function WorkspaceClient({ user }: WorkspaceClientProps) {
   const { lang, t } = useLanguage();
   const [documents, setDocuments] = useState<SourceDocumentItem[]>([]);
@@ -78,6 +85,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [deletingCount, setDeletingCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toastError, setToastError] = useState<string | null>(null);
   const [toastWarning, setToastWarning] = useState<string | null>(null);
@@ -238,24 +246,12 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
   async function handleDeleteDoc(docId: string) {
     setToastError(null);
-    const res = await fetch(`/api/documents/${docId}`, {
-      method: "DELETE",
-    });
 
-    if (!res.ok) {
-      const data = (await res.json()) as {
-        error?: string;
-        accountBlocked?: boolean;
-        reason?: string | null;
-      };
-      if (res.status === 403 && data.accountBlocked) {
-        setBlockedState({ blocked: true, reason: data.reason ?? null });
-        return;
-      }
-      setToastError(data.error || t.chat.errDeleteFailed);
-      return;
-    }
+    // Snapshot for safe rollback if backend deletion fails
+    const removedDoc = documents.find((d) => d.id === docId);
+    const removedIndex = documents.findIndex((d) => d.id === docId);
 
+    // Immediately remove from UI for snappy zero-lag UX
     setDocuments((prev) => {
       const next = prev.filter((d) => d.id !== docId);
       setSummary(recomputeSummary(next));
@@ -264,6 +260,57 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
 
     if (previewDoc?.id === docId) {
       setPreviewDoc(null);
+    }
+
+    setDeletingCount((c) => c + 1);
+    try {
+      const res = await fetch(`/api/documents/${docId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          accountBlocked?: boolean;
+          reason?: string | null;
+        };
+        if (res.status === 403 && data.accountBlocked) {
+          setBlockedState({ blocked: true, reason: data.reason ?? null });
+          return;
+        }
+        // Rollback on error
+        if (removedDoc) {
+          setDocuments((prev) => {
+            if (prev.some((d) => d.id === removedDoc.id)) return prev;
+            const next = [...prev];
+            next.splice(
+              Math.min(Math.max(0, removedIndex), next.length),
+              0,
+              removedDoc
+            );
+            setSummary(recomputeSummary(next));
+            return next;
+          });
+        }
+        setToastError(data.error || t.chat.errDeleteFailed);
+      }
+    } catch {
+      if (removedDoc) {
+        setDocuments((prev) => {
+          if (prev.some((d) => d.id === removedDoc.id)) return prev;
+          const next = [...prev];
+          next.splice(
+            Math.min(Math.max(0, removedIndex), next.length),
+            0,
+            removedDoc
+          );
+          setSummary(recomputeSummary(next));
+          return next;
+        });
+      }
+      setToastError(t.chat.errDeleteFailed);
+    } finally {
+      setDeletingCount((c) => Math.max(0, c - 1));
     }
   }
 
@@ -436,6 +483,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
     const tempUserId = `temp-user-${Date.now()}`;
     const tempAssistantId = `temp-ai-${Date.now()}`;
     const nowIso = new Date().toISOString();
+    const askedLang = detectAskedLang(query, lang);
 
     setMessages((prev) => [
       ...prev,
@@ -446,6 +494,7 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
         content: "",
         createdAt: nowIso,
         isStreaming: true,
+        queryLang: askedLang,
       },
     ]);
 
@@ -608,12 +657,10 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-white">
+    <div className="h-screen flex flex-col overflow-hidden glass-canvas">
       <Navbar
         mode="workspace"
         user={user}
-        sourceCount={summary.count}
-        activeTokens={summary.activeTokens}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
       />
@@ -637,32 +684,49 @@ export function WorkspaceClient({ user }: WorkspaceClientProps) {
           onOpenStudio={(mode) => void handleOpenStudio(mode)}
         />
 
-        {/* Desktop collapsible & Mobile overlay sidebar */}
-        {sidebarOpen && (
-          <div className="fixed inset-y-0 end-0 top-14 z-20 w-full max-w-[380px] lg:static lg:inset-auto lg:w-auto lg:max-w-none shadow-[0_0_32px_rgba(37,50,55,0.12)] lg:shadow-none animate-fade-in">
-            <SourcesSidebar
-              documents={documents}
-              summary={summary}
-              isLoading={isLoadingDocs}
-              highlightedDocId={highlightedDocId}
-              previewDoc={previewDoc}
-              onClosePreview={() => setPreviewDoc(null)}
-              onOpenPreview={(docId, snippet) =>
-                void handleOpenPreview(docId, snippet)
-              }
-              onUploadFiles={handleUploadFiles}
-              onToggleSelect={handleToggleSelect}
-              onDeleteDoc={handleDeleteDoc}
-              onCollapse={() => setSidebarOpen(false)}
-              toastError={toastError}
-              toastWarning={toastWarning}
-              onDismissToast={() => {
-                setToastError(null);
-                setToastWarning(null);
-              }}
-            />
-          </div>
-        )}
+        {/* Mobile glass backdrop when sidebar is open */}
+        <div
+          aria-hidden="true"
+          onClick={() => setSidebarOpen(false)}
+          className={`fixed inset-0 top-14 z-10 bg-slate-900/20 backdrop-blur-[2px] lg:hidden transition-opacity duration-300 ${
+            sidebarOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
+          }`}
+        />
+
+        {/* Smoothly Animated Collapsible Sources Sidebar (Desktop & Mobile) */}
+        <div
+          aria-hidden={!sidebarOpen}
+          className={`fixed inset-y-0 end-0 top-14 z-20 w-full max-w-[385px] lg:static lg:inset-auto lg:top-auto lg:max-w-none h-full overflow-hidden transition-[width,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            sidebarOpen
+              ? "translate-x-0 opacity-100 lg:w-[350px] xl:w-[385px]"
+              : "translate-x-full opacity-0 pointer-events-none lg:translate-x-6 lg:w-0"
+          }`}
+        >
+          <SourcesSidebar
+            documents={documents}
+            summary={summary}
+            isLoading={isLoadingDocs}
+            isSyncingDelete={deletingCount > 0}
+            highlightedDocId={highlightedDocId}
+            previewDoc={previewDoc}
+            onClosePreview={() => setPreviewDoc(null)}
+            onOpenPreview={(docId, snippet) =>
+              void handleOpenPreview(docId, snippet)
+            }
+            onUploadFiles={handleUploadFiles}
+            onToggleSelect={handleToggleSelect}
+            onDeleteDoc={handleDeleteDoc}
+            onCollapse={() => setSidebarOpen(false)}
+            toastError={toastError}
+            toastWarning={toastWarning}
+            onDismissToast={() => {
+              setToastError(null);
+              setToastWarning(null);
+            }}
+          />
+        </div>
       </div>
 
       {studioModal && (

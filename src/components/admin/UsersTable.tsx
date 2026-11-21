@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowUpDown, Loader2, Search, X } from "lucide-react";
 import { formatUsd } from "@/lib/pricing";
+import { MAX_FILES_PER_USER } from "@/lib/constants";
 import { useLanguage, type Translations } from "@/lib/i18n";
 
 export interface AdminUserRow {
@@ -348,7 +349,9 @@ export function UsersTable({
                         <span className="font-medium text-slate-900">
                           {u.activeFiles}
                         </span>
-                        <span className="text-slate-400">/10</span>
+                        <span className="text-slate-400">
+                          /{MAX_FILES_PER_USER}
+                        </span>
                         <p className="text-[10px] text-slate-400">
                           {t.admin.totalFilesSub(u.totalFiles)}
                         </p>

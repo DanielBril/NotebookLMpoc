@@ -4,11 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LogOut, PanelRightOpen } from "lucide-react";
+import { LogOut, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/lib/i18n";
-import { MAX_ACTIVE_CONTEXT_TOKENS, MAX_FILES_PER_USER } from "@/lib/constants";
 
 interface NavbarProps {
   mode: "workspace" | "admin" | "developer";
@@ -18,8 +17,6 @@ interface NavbarProps {
     image?: string | null;
     role: string;
   };
-  sourceCount?: number;
-  activeTokens?: number;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
 }
@@ -27,16 +24,12 @@ interface NavbarProps {
 export function Navbar({
   mode,
   user,
-  sourceCount = 0,
-  activeTokens = 0,
   onToggleSidebar,
   sidebarOpen,
 }: NavbarProps) {
   const router = useRouter();
   const { lang, t } = useLanguage();
   const isHe = lang === "he";
-  const tokenRatio = Math.min(1, activeTokens / MAX_ACTIVE_CONTEXT_TOKENS);
-  const isNearTokenLimit = tokenRatio >= 0.8;
   const initials = (user.name || user.username || "U")
     .split(/\s+/)
     .map((s) => s[0])
@@ -45,7 +38,7 @@ export function Navbar({
     .slice(0, 2);
 
   return (
-    <header className="relative z-30 shrink-0 bg-[#0f172a] text-white border-b border-white/10">
+    <header className="relative z-30 shrink-0 bg-[#0f172a]/88 backdrop-blur-xl text-white border-b border-white/12 shadow-[0_8px_28px_-12px_rgba(15,23,42,0.45)]">
       <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
         {/* Start: Brand + Mode Navigation */}
         <div className="flex items-center gap-4 min-w-0">
@@ -57,7 +50,7 @@ export function Navbar({
                   ? "/admin"
                   : "/workspace"
             }
-            className="shrink-0 focus:outline-none"
+            className="shrink-0 focus:outline-none transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             <BrandLogo size={26} variant="light" />
           </Link>
@@ -70,10 +63,10 @@ export function Navbar({
                 <Link
                   id="nav-workspace-link"
                   href="/workspace"
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`interactive-chip rounded-lg px-3 py-1.5 text-xs font-medium ${
                     mode === "workspace"
-                      ? "bg-[#0d9488] text-white shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-white/8"
+                      ? "bg-teal-600/90 text-white shadow-[0_2px_10px_rgba(13,148,136,0.4)] border border-teal-400/30"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   {t.navbar.workspaceBtn}
@@ -81,10 +74,10 @@ export function Navbar({
                 <Link
                   id="nav-admin-link"
                   href="/admin"
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`interactive-chip rounded-lg px-3 py-1.5 text-xs font-medium ${
                     mode === "admin"
-                      ? "bg-[#0d9488] text-white shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-white/8"
+                      ? "bg-teal-600/90 text-white shadow-[0_2px_10px_rgba(13,148,136,0.4)] border border-teal-400/30"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   {t.navbar.adminPortalBtn}
@@ -92,10 +85,10 @@ export function Navbar({
                 <Link
                   id="nav-developer-link"
                   href="/developer"
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`interactive-chip rounded-lg px-3 py-1.5 text-xs font-medium ${
                     mode === "developer"
-                      ? "bg-[#0d9488] text-white shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-white/8"
+                      ? "bg-teal-600/90 text-white shadow-[0_2px_10px_rgba(13,148,136,0.4)] border border-teal-400/30"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   {isHe ? "דיאגנוסטיקה ולוגים" : "Developer Ops"}
@@ -109,45 +102,7 @@ export function Navbar({
           </nav>
         </div>
 
-        {/* Center: Clean Tabular Context Readout (Workspace mode only) */}
-        {mode === "workspace" && (
-          <div className="hidden md:flex items-center gap-3 text-xs font-mono text-slate-300">
-            <span>
-              <strong className="text-white font-semibold">{sourceCount}</strong>
-              <span className="text-slate-400">/{MAX_FILES_PER_USER}</span>{" "}
-              {t.navbar.sourcesUnit}
-            </span>
-            <span className="text-white/20">|</span>
-            <div className="flex items-center gap-2">
-              <span>
-                <strong
-                  className={
-                    isNearTokenLimit
-                      ? "text-amber-300 font-semibold"
-                      : "text-white font-semibold"
-                  }
-                >
-                  {activeTokens.toLocaleString()}
-                </strong>
-                <span className="text-slate-400">
-                  /{MAX_ACTIVE_CONTEXT_TOKENS.toLocaleString()}
-                </span>{" "}
-                {t.navbar.tokensUnit}
-              </span>
-              <div className="w-16 h-1.5 rounded-full bg-white/15 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.max(activeTokens > 0 ? 4 : 0, Math.round(tokenRatio * 100))}%`,
-                    backgroundColor: isNearTokenLimit ? "#f59e0b" : "#14b8a6",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* End: Utilities & User */}
+        {/* End: Utilities & User (Zero token or source counters in navbar) */}
         <div className="flex items-center gap-2 shrink-0">
           <LanguageToggle variant="dark" id="navbar-lang-toggle" />
 
@@ -159,12 +114,18 @@ export function Navbar({
               title={
                 sidebarOpen ? t.navbar.collapseSources : t.navbar.openSources
               }
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-teal-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border cursor-pointer ${
+                sidebarOpen
+                  ? "bg-teal-500/20 text-teal-100 border-teal-400/35 hover:bg-teal-500/30"
+                  : "bg-white/8 text-slate-200 border-white/12 hover:bg-white/15 hover:text-white"
+              }`}
             >
-              <PanelRightOpen className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
-              <span className="hidden sm:inline">
-                {t.navbar.sourcesCount(sourceCount)}
-              </span>
+              {sidebarOpen ? (
+                <PanelRightClose className="h-3.5 w-3.5 transition-transform duration-200" />
+              ) : (
+                <PanelRightOpen className="h-3.5 w-3.5 transition-transform duration-200" />
+              )}
+              <span className="hidden sm:inline">{t.sources.title}</span>
             </button>
           )}
 
@@ -176,10 +137,10 @@ export function Navbar({
                 width={24}
                 height={24}
                 unoptimized
-                className="h-6 w-6 rounded-full object-cover"
+                className="h-6 w-6 rounded-full object-cover ring-1 ring-white/25"
               />
             ) : (
-              <div className="h-6 w-6 rounded-full bg-teal-500/25 text-teal-200 flex items-center justify-center text-[10px] font-semibold">
+              <div className="h-6 w-6 rounded-full bg-teal-500/25 text-teal-200 ring-1 ring-teal-400/30 flex items-center justify-center text-[10px] font-semibold">
                 {initials}
               </div>
             )}
@@ -198,7 +159,7 @@ export function Navbar({
               })
             }
             title={t.navbar.signOutTitle}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-rose-200 hover:bg-rose-500/15 cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5 rtl:scale-x-[-1]" />
             <span className="hidden sm:inline">{t.navbar.logout}</span>

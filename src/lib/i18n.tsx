@@ -267,7 +267,7 @@ const HE: Translations = {
     badge: "מבוסס מקורות בלבד • אפס המצאות חיצוניות",
     headline: "תשאלו את המסמכים שלכם במהירות של פחות משנייה.",
     description:
-      "העלו עד 10 קבצי PDF, חוזים, מפרטים או גיליונות נתונים וקבלו תשובות מדויקות המבוססות אך ורק על המקורות שבחרתם — עם הפניות לחיצות והגנת 4 שכבות מפני הזרקת פרומפטים.",
+      "העלו עד 100 קבצי PDF, חוזים, מפרטים או גיליונות נתונים וקבלו תשובות מדויקות המבוססות אך ורק על המקורות שבחרתם — עם הפניות לחיצות והגנת 4 שכבות מפני הזרקת פרומפטים.",
     feature1Title: "הזרמת Fast-Path SSE",
     feature1Desc: "תשובות בזמן אמת עם מטמון הקשר חכם וללא עיכובי מסד וקטורי.",
     feature2Title: "הפניות ישירות למקור",
@@ -295,7 +295,7 @@ const HE: Translations = {
     errGoogleNotConfigured:
       "התחברות Google אינה מוגדרת בסביבה זו. התחברו עם שם משתמש וסיסמה או הגדירו GOOGLE_CLIENT_ID.",
     signupTitle: "יצירת חשבון חדש",
-    signupSubtitle: "התחילו להעלות עד 10 מקורות מבוססים תוך שניות.",
+    signupSubtitle: "התחילו להעלות עד 100 מקורות מבוססים תוך שניות.",
     usernameSignupPlaceholder: "3–24 אותיות באנגלית, ספרות או קו תחתון",
     displayName: "שם תצוגה",
     displayNamePlaceholder: "למשל: מאיה כהן",
@@ -345,7 +345,7 @@ const HE: Translations = {
     emptyTitleNoActive: "בחרו לפחות מקור אחד בחלונית המקורות",
     emptyTitleReady: "שאלו כל שאלה על המקורות שבחרתם",
     emptyDescNoDocs:
-      "העלו עד 10 קבצי PDF, DOCX, TXT, MD או CSV בחלונית המקורות. כל תשובה מבוססת אך ורק על המסמכים שלכם עם הפניות מדויקות.",
+      "העלו עד 100 קבצי PDF, DOCX, TXT, MD או CSV בחלונית המקורות. כל תשובה מבוססת אך ורק על המסמכים שלכם עם הפניות מדויקות.",
     emptyDescNoActive:
       "סמנו מסמך אחד או יותר בחלונית המקורות כדי לטעון אותם לחלון ההקשר המבוסס.",
     emptyDescReady:
@@ -353,7 +353,7 @@ const HE: Translations = {
     suggestedHeading: "שאלות מומלצות על המקורות",
     guardrailTriggeredTitle: "מנגנון האבטחה והגבולות הופעל",
     strictRefusalBadge: "סירוב קפדני מחוץ למקורות",
-    synthesizing: "מגבש תשובה מבוססת מקורות…",
+    synthesizing: "מחפש את התשובה הטובה ביותר לשאלה שלך…",
     verifiedCitationsLabel: "הפניות מאומתות למקורות (לחצו להצצה)",
     cachedTok: (n) => `${n} טוקנים מהמטמון`,
     inputPlaceholderActive:
@@ -361,7 +361,7 @@ const HE: Translations = {
     inputPlaceholderEmpty: "העלו וסמנו מקורות כדי לשאול שאלות מבוססות…",
     strictlySourcesOnly: "מקורות מסומנים בלבד",
     streaming: "מזרים תשובה…",
-    askSources: "שאל את המקורות",
+    askSources: "שאל",
     errLoadWorkspace: "לא ניתן לטעון את נתוני סביבת העבודה. אנא רעננו.",
     errUploadFailed: "העלאת הקבצים נכשלה.",
     errToggleFailed: "עדכון בחירת המקור נכשל.",
@@ -383,13 +383,13 @@ const HE: Translations = {
     title: "מקורות",
     activeTok: (compact) => `${compact} טוקנים פעילים`,
     closePanel: "סגירת חלונית המקורות",
-    maxReachedTitle: "הגעתם למגבלת 10 המקורות.",
+    maxReachedTitle: "הגעתם למגבלת 100 המקורות.",
     maxReachedDesc: "מחקו מקור קיים כדי להעלות מקור חדש.",
     extracting: "מחלץ ומאנדקס טקסט…",
     dropOrBrowse: "גררו קבצים לכאן או בחרו מהמחשב",
-    formatsHint: "PDF, DOCX, TXT, MD, CSV • עד 10 MB לקובץ",
+    formatsHint: "PDF, DOCX, TXT, MD, CSV • עד 30 MB לקובץ",
     addSources: "הוספת מקורות",
-    storageLabel: (used) => `אחסון: ${used} / 50 MB`,
+    storageLabel: (used) => `אחסון: ${used}`,
     emptyTitle: "עדיין לא הועלו מקורות",
     emptyDesc:
       "העלו חוזים, מאמרי מחקר, נהלים או טבלאות CSV. ContextLM יענה אך ורק מתוך המקורות שתסמנו.",
@@ -402,16 +402,16 @@ const HE: Translations = {
     verifiedPreviewLabel: "תצוגה מקדימה מאומתת של המקור",
     loadingPreview: "טוען קטע טקסט מהמקור…",
     sourceDocumentFallback: "מסמך מקור",
-    errMaxFiles: "הגעתם למגבלת 10 מקורות. מחקו מקור כדי להעלות נוסף.",
+    errMaxFiles: "הגעתם למגבלת 100 מקורות. מחקו מקור כדי להעלות נוסף.",
     errRemainingFiles: (remaining) =>
       remaining === 1
-        ? "ניתן להעלות עוד מקור אחד בלבד (מקסימום 10 בסך הכול)."
-        : `ניתן להעלות עוד עד ${remaining} מקורות בלבד (מקסימום 10 בסך הכול).`,
+        ? "ניתן להעלות עוד מקור אחד בלבד (מקסימום 100 בסך הכול)."
+        : `ניתן להעלות עוד עד ${remaining} מקורות בלבד (מקסימום 100 בסך הכול).`,
     errUnsupportedType: (name) =>
       `הקובץ "${name}" אינו נתמך. פורמטים מותרים: PDF, TXT, MD, CSV, DOCX.`,
-    errFileTooLarge: (name) => `הקובץ "${name}" חורג ממגבלת 10 MB לקובץ.`,
+    errFileTooLarge: (name) => `הקובץ "${name}" חורג ממגבלת 30 MB לקובץ.`,
     errTotalStorage: (name) =>
-      `העלאת "${name}" תחרוג ממגבלת האחסון המצטברת של 50 MB.`,
+      `העלאת "${name}" נכשלה עקב חריגת נפח.`,
     errTokenCeiling: (name) =>
       `בחירת "${name}" תחרוג מתקרת 150,000 הטוקנים הפעילים. בטלו סימון של מקור גדול תחילה.`,
   },
@@ -538,7 +538,7 @@ const EN: Translations = {
     badge: "Strictly Grounded • Zero External Hallucination",
     headline: "Interrogate your documents at sub-second speed.",
     description:
-      "Upload up to 10 PDFs, contracts, specs, or spreadsheets and receive deterministic answers grounded exclusively in your selected sources—with clickable inline citations and 4-layer prompt-injection defense.",
+      "Upload up to 100 PDFs, contracts, specs, or spreadsheets and receive deterministic answers grounded exclusively in your selected sources—with clickable inline citations and 4-layer prompt-injection defense.",
     feature1Title: "Fast-Path SSE",
     feature1Desc: "Prefix-cached 1.05M context streaming with zero vector-DB drag.",
     feature2Title: "Inline Citations",
@@ -566,7 +566,7 @@ const EN: Translations = {
     errGoogleNotConfigured:
       "Google OAuth is not configured on this instance. Use username/password or configure GOOGLE_CLIENT_ID.",
     signupTitle: "Create your account",
-    signupSubtitle: "Start uploading up to 10 grounded sources in seconds.",
+    signupSubtitle: "Start uploading up to 100 grounded sources in seconds.",
     usernameSignupPlaceholder: "3–24 letters, numbers, or _",
     displayName: "Display Name",
     displayNamePlaceholder: "e.g. Maya Patel",
@@ -616,7 +616,7 @@ const EN: Translations = {
     emptyTitleNoActive: "Select at least one source in the Sources panel",
     emptyTitleReady: "Ask anything about your selected sources",
     emptyDescNoDocs:
-      "Upload up to 10 PDF, DOCX, TXT, MD, or CSV files in the Sources drawer. Every answer is grounded exclusively in your documents with inline citations.",
+      "Upload up to 100 PDF, DOCX, TXT, MD, or CSV files in the Sources drawer. Every answer is grounded exclusively in your documents with inline citations.",
     emptyDescNoActive:
       "Check one or more uploaded documents in the Sources drawer to load them into the grounded context window.",
     emptyDescReady:
@@ -624,7 +624,7 @@ const EN: Translations = {
     suggestedHeading: "Suggested grounded questions",
     guardrailTriggeredTitle: "Security & Scope Guardrail Triggered",
     strictRefusalBadge: "Strict Grounding Refusal",
-    synthesizing: "Synthesizing grounded answer…",
+    synthesizing: "Searching for the best answer to your question…",
     verifiedCitationsLabel: "Verified Source Citations (click to inspect)",
     cachedTok: (n) => `${n} cached tok`,
     inputPlaceholderActive:
@@ -632,8 +632,8 @@ const EN: Translations = {
     inputPlaceholderEmpty:
       "Upload and select sources to ask grounded questions…",
     strictlySourcesOnly: "Strictly Sources Only",
-    streaming: "Streaming…",
-    askSources: "Ask Sources",
+    streaming: "Searching…",
+    askSources: "Ask",
     errLoadWorkspace: "Unable to load workspace data. Please refresh.",
     errUploadFailed: "Upload failed.",
     errToggleFailed: "Failed to update source selection.",
@@ -660,13 +660,13 @@ const EN: Translations = {
     title: "Sources",
     activeTok: (compact) => `${compact} active tok`,
     closePanel: "Close Sources panel",
-    maxReachedTitle: "Maximum 10 sources reached.",
+    maxReachedTitle: "Maximum 100 sources reached.",
     maxReachedDesc: "Delete a source below to upload another.",
     extracting: "Extracting & indexing text…",
     dropOrBrowse: "Drop files here or browse",
-    formatsHint: "PDF, DOCX, TXT, MD, CSV • Max 10 MB each",
+    formatsHint: "PDF, DOCX, TXT, MD, CSV • Max 30 MB each",
     addSources: "Add Sources",
-    storageLabel: (used) => `Storage: ${used} / 50 MB`,
+    storageLabel: (used) => `Storage: ${used}`,
     emptyTitle: "No sources uploaded yet",
     emptyDesc:
       "Upload contracts, research papers, SOPs, or CSV tables. ContextLM will answer strictly from your checked sources.",
@@ -679,14 +679,14 @@ const EN: Translations = {
     verifiedPreviewLabel: "Verified Source Preview",
     loadingPreview: "Loading extracted source snippet…",
     sourceDocumentFallback: "Source Document",
-    errMaxFiles: "Maximum 10 sources reached. Delete a source to upload another.",
+    errMaxFiles: "Maximum 100 sources reached. Delete a source to upload another.",
     errRemainingFiles: (remaining) =>
-      `You can upload at most ${remaining} more ${remaining === 1 ? "source" : "sources"} (max 10 total).`,
+      `You can upload at most ${remaining} more ${remaining === 1 ? "source" : "sources"} (max 100 total).`,
     errUnsupportedType: (name) =>
       `"${name}" is not supported. Allowed types: PDF, TXT, MD, CSV, DOCX.`,
-    errFileTooLarge: (name) => `"${name}" exceeds the 10 MB per-file limit.`,
+    errFileTooLarge: (name) => `"${name}" exceeds the 30 MB per-file limit.`,
     errTotalStorage: (name) =>
-      `Uploading "${name}" exceeds the 50 MB cumulative storage limit.`,
+      `Uploading "${name}" failed due to size limits.`,
     errTokenCeiling: (name) =>
       `Selecting "${name}" exceeds the 150,000 active context token ceiling. Uncheck a large source first.`,
   },

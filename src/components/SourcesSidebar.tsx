@@ -15,9 +15,7 @@ import {
   MAX_ACTIVE_CONTEXT_TOKENS,
   MAX_FILE_SIZE_BYTES,
   MAX_FILES_PER_USER,
-  MAX_TOTAL_STORAGE_BYTES,
 } from "@/lib/constants";
-import { formatTokensCompact } from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
 
 export interface SourceDocumentItem {
@@ -57,6 +55,7 @@ interface SourcesSidebarProps {
   documents: SourceDocumentItem[];
   summary: SourcesSummary;
   isLoading: boolean;
+  isSyncingDelete?: boolean;
   highlightedDocId: string | null;
   previewDoc: PreviewDocState | null;
   onClosePreview: () => void;
@@ -86,6 +85,7 @@ export function SourcesSidebar({
   documents,
   summary,
   isLoading,
+  isSyncingDelete = false,
   highlightedDocId,
   previewDoc,
   onClosePreview,
@@ -106,7 +106,6 @@ export function SourcesSidebar({
   const [isUploading, setIsUploading] = useState(false);
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,10 +121,6 @@ export function SourcesSidebar({
   }, [previewDoc]);
 
   const isAtFileCap = summary.count >= MAX_FILES_PER_USER;
-  const storagePercent = Math.min(
-    100,
-    Math.round((summary.totalSizeBytes / MAX_TOTAL_STORAGE_BYTES) * 100)
-  );
 
   function validateClientFiles(incoming: File[]): File[] | null {
     setLocalError(null);
@@ -142,7 +137,6 @@ export function SourcesSidebar({
       return null;
     }
 
-    let projectedBytes = summary.totalSizeBytes;
     for (const file of incoming) {
       const dotIdx = file.name.lastIndexOf(".");
       const ext = dotIdx >= 0 ? file.name.slice(dotIdx).toLowerCase() : "";
@@ -152,11 +146,6 @@ export function SourcesSidebar({
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
         setLocalError(t.sources.errFileTooLarge(file.name));
-        return null;
-      }
-      projectedBytes += file.size;
-      if (projectedBytes > MAX_TOTAL_STORAGE_BYTES) {
-        setLocalError(t.sources.errTotalStorage(file.name));
         return null;
       }
     }
@@ -205,21 +194,23 @@ export function SourcesSidebar({
     }
   }
 
-  async function handleConfirmDelete(docId: string) {
-    setDeletingId(docId);
-    try {
-      await onDeleteDoc(docId);
-      setConfirmDeleteId(null);
-    } finally {
-      setDeletingId(null);
-    }
+  function handleConfirmDelete(docId: string) {
+    setConfirmDeleteId(null);
+    void onDeleteDoc(docId);
   }
 
   const activeAlert = localError || toastError;
 
   return (
-    <aside className="relative flex flex-col h-full bg-slate-50 border-s border-slate-200 w-full lg:w-[340px] xl:w-[380px] shrink-0 overflow-hidden">
-      {/* Header */}
+    <aside className="relative flex flex-col h-full glass-panel border-s border-white/75 shadow-[-10px_0_32px_-16px_rgba(15,23,42,0.12)] w-full lg:w-[350px] xl:w-[385px] shrink-0 overflow-hidden">
+      {/* Subtle indeterminate sync bar when deleting in the background */}
+      {isSyncingDelete && (
+        <div className="absolute inset-x-0 top-0 h-[2.5px] bg-teal-100 overflow-hidden z-30">
+          <div className="h-full w-2/5 rounded-full bg-teal-600 animate-indeterminate-bar" />
+        </div>
+      )}
+
+      {/* Header — Shows only Sources title and uploaded / allowed count (no tokens!) */}
       <div
         dir={isHe ? "rtl" : "ltr"}
         className="px-5 pt-5 pb-4 flex items-start justify-between shrink-0"
@@ -229,8 +220,7 @@ export function SourcesSidebar({
             {t.sources.title}
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 font-mono" dir="ltr">
-            {summary.count}/{MAX_FILES_PER_USER} ·{" "}
-            {t.sources.activeTok(formatTokensCompact(summary.activeTokens))}
+            {summary.count} / {MAX_FILES_PER_USER}
           </p>
         </div>
         {onCollapse && (
@@ -238,7 +228,7 @@ export function SourcesSidebar({
             type="button"
             onClick={onCollapse}
             title={t.sources.closePanel}
-            className="rounded-md p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-800 hover:bg-white/80 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -249,7 +239,7 @@ export function SourcesSidebar({
       {activeAlert && (
         <div
           dir={isHe ? "rtl" : "ltr"}
-          className="mx-5 mb-3 rounded-lg bg-rose-50 border border-rose-200 border-s-4 border-s-rose-500 px-3 py-2.5 text-xs text-rose-900 flex items-start gap-2 shrink-0"
+          className="animate-toast-in mx-5 mb-3 rounded-xl bg-rose-50/90 backdrop-blur-md border border-rose-200 border-s-4 border-s-rose-500 px-3 py-2.5 text-xs text-rose-900 flex items-start gap-2 shrink-0"
         >
           <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-rose-600" />
           <span className="flex-1 leading-snug">{activeAlert}</span>
@@ -269,7 +259,7 @@ export function SourcesSidebar({
       {toastWarning && !activeAlert && (
         <div
           dir={isHe ? "rtl" : "ltr"}
-          className="mx-5 mb-3 rounded-lg bg-amber-50 border border-amber-200 border-s-4 border-s-amber-500 px-3 py-2.5 text-xs text-amber-900 flex items-start gap-2 shrink-0"
+          className="animate-toast-in mx-5 mb-3 rounded-xl bg-amber-50/90 backdrop-blur-md border border-amber-200 border-s-4 border-s-amber-500 px-3 py-2.5 text-xs text-amber-900 flex items-start gap-2 shrink-0"
         >
           <span className="flex-1 leading-snug">{toastWarning}</span>
           <button
@@ -282,7 +272,7 @@ export function SourcesSidebar({
         </div>
       )}
 
-      {/* Upload Dropzone — Teal interactive affordance */}
+      {/* Glassy Upload Dropzone (no storage cap bar below) */}
       <div className="px-5 pb-4 shrink-0">
         <input
           ref={fileInputRef}
@@ -305,12 +295,12 @@ export function SourcesSidebar({
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          className={`rounded-lg border border-dashed px-4 py-3 transition-colors ${
+          className={`rounded-xl border border-dashed px-4 py-3.5 transition-all duration-200 ${
             isAtFileCap
-              ? "border-slate-300 bg-slate-100/60"
+              ? "border-slate-300 bg-white/40"
               : isDragging
-                ? "border-teal-600 bg-teal-50"
-                : "border-teal-400/70 hover:border-teal-600 bg-teal-50/40 hover:bg-teal-50/80"
+                ? "border-teal-600 bg-teal-50/90 scale-[1.01] shadow-sm"
+                : "border-teal-400/70 hover:border-teal-600 bg-white/60 hover:bg-white/85"
           }`}
         >
           {isAtFileCap ? (
@@ -339,7 +329,7 @@ export function SourcesSidebar({
                   {t.sources.formatsHint}
                 </span>
               </span>
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-teal-600 text-white shrink-0">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-[0_4px_12px_-2px_rgba(13,148,136,0.45)] shrink-0">
                 {isUploading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
@@ -349,33 +339,16 @@ export function SourcesSidebar({
             </button>
           )}
         </div>
-
-        {/* Storage meter */}
-        <div className="mt-3 flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
-          <div className="h-1 flex-1 rounded-full bg-slate-200 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                storagePercent > 85 ? "bg-amber-500" : "bg-teal-600"
-              }`}
-              style={{
-                width: `${Math.max(summary.totalSizeBytes > 0 ? 3 : 0, storagePercent)}%`,
-              }}
-            />
-          </div>
-          <span dir="ltr">
-            {t.sources.storageLabel(formatFileSize(summary.totalSizeBytes))}
-          </span>
-        </div>
       </div>
 
-      {/* Sources List */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4 border-t border-slate-200">
+      {/* Sources List (no per-file token counts) */}
+      <div className="flex-1 overflow-y-auto px-5 pb-4 border-t border-slate-200/70">
         {isLoading ? (
-          <div className="divide-y divide-slate-200/70">
+          <div className="divide-y divide-slate-200/60">
             {[1, 2, 3].map((idx) => (
               <div key={idx} className="py-3.5">
-                <div className="h-3 w-2/3 rounded bg-slate-200 animate-pulse" />
-                <div className="mt-2 h-2.5 w-1/3 rounded bg-slate-200/60 animate-pulse" />
+                <div className="h-3 w-2/3 rounded bg-slate-200/80 animate-pulse" />
+                <div className="mt-2 h-2.5 w-1/3 rounded bg-slate-200/50 animate-pulse" />
               </div>
             ))}
           </div>
@@ -389,21 +362,21 @@ export function SourcesSidebar({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-200/70">
+          <div className="divide-y divide-slate-200/60">
             {documents.map((doc) => {
               const ext = getFileTypeBadge(doc.filename).label;
               const isHighlighted = highlightedDocId === doc.id;
               const isConfirming = confirmDeleteId === doc.id;
-              const isBusy = pendingToggleId === doc.id || deletingId === doc.id;
+              const isBusy = pendingToggleId === doc.id;
 
               return (
                 <div
                   key={doc.id}
                   id={`source-card-${doc.id}`}
-                  className={`group -mx-2 px-2 py-3 rounded-md flex items-start gap-3 transition-colors ${
+                  className={`group -mx-2 px-2.5 py-3 rounded-xl flex items-start gap-3 transition-all duration-150 ${
                     isHighlighted
-                      ? "bg-teal-50 ring-1 ring-teal-400 source-highlight-pulse"
-                      : "hover:bg-white"
+                      ? "bg-teal-50/90 ring-1 ring-teal-400 source-highlight-pulse"
+                      : "hover:bg-white/80"
                   } ${doc.isSelected ? "" : "opacity-55 hover:opacity-100"}`}
                 >
                   {/* Emerald active checkbox */}
@@ -414,10 +387,10 @@ export function SourcesSidebar({
                     aria-label={t.sources.includeAria(doc.filename)}
                     disabled={isBusy}
                     onClick={() => void handleCheckboxToggle(doc)}
-                    className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                    className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center cursor-pointer ${
                       doc.isSelected
-                        ? "bg-emerald-600 border-emerald-600 text-white"
-                        : "bg-white border-slate-300 text-transparent hover:border-emerald-500"
+                        ? "bg-emerald-600 border-emerald-600 text-white shadow-xs"
+                        : "bg-white/90 border-slate-300 text-transparent hover:border-emerald-500"
                     }`}
                   >
                     {pendingToggleId === doc.id ? (
@@ -427,13 +400,13 @@ export function SourcesSidebar({
                     )}
                   </button>
 
-                  {/* File info */}
+                  {/* File info — clean ext & file size only (no tokens) */}
                   <div className="min-w-0 flex-1">
                     <button
                       type="button"
                       onClick={() => onOpenPreview(doc.id, doc.previewSnippet)}
                       title={doc.filename}
-                      className="block w-full text-start text-sm font-medium text-slate-900 truncate hover:text-teal-700 hover:underline underline-offset-2 cursor-pointer"
+                      className="block w-full text-start text-sm font-medium text-slate-900 truncate hover:text-teal-700 cursor-pointer"
                     >
                       {doc.filename}
                     </button>
@@ -442,8 +415,7 @@ export function SourcesSidebar({
                       dir="ltr"
                     >
                       <span className="font-semibold text-slate-500">{ext}</span>{" "}
-                      · {formatTokensCompact(doc.tokenCount)}{" "}
-                      {t.sources.tokUnit} · {formatFileSize(doc.sizeBytes)}
+                      · {formatFileSize(doc.sizeBytes)}
                     </p>
                   </div>
 
@@ -453,16 +425,15 @@ export function SourcesSidebar({
                       <>
                         <button
                           type="button"
-                          disabled={deletingId === doc.id}
-                          onClick={() => void handleConfirmDelete(doc.id)}
-                          className="rounded px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          onClick={() => handleConfirmDelete(doc.id)}
+                          className="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 cursor-pointer"
                         >
-                          {deletingId === doc.id ? "…" : t.sources.deleteBtn}
+                          {t.sources.deleteBtn}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
-                          className="rounded px-1.5 py-1 text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer"
+                          className="rounded-lg px-1.5 py-1 text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
                         >
                           {t.sources.cancelBtn}
                         </button>
@@ -475,7 +446,7 @@ export function SourcesSidebar({
                             onOpenPreview(doc.id, doc.previewSnippet)
                           }
                           title={t.sources.previewTitle}
-                          className="rounded p-1 text-slate-400 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
+                          className="rounded-lg p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -483,7 +454,7 @@ export function SourcesSidebar({
                           type="button"
                           onClick={() => setConfirmDeleteId(doc.id)}
                           title={t.sources.deleteTitle}
-                          className="rounded p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -499,8 +470,8 @@ export function SourcesSidebar({
 
       {/* Quick Snippet & Verify-Claim Preview Drawer */}
       {previewDoc && (
-        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[68%] flex flex-col bg-white border-t border-[#253237]/12 shadow-[0_-8px_24px_rgba(37,50,55,0.08)]">
-          <div className="flex items-center justify-between gap-2 bg-white px-5 py-3 border-b border-[#253237]/8">
+        <div className="animate-slide-up-drawer absolute inset-x-0 bottom-0 z-20 max-h-[68%] flex flex-col bg-white/88 backdrop-blur-2xl border-t border-white/80 shadow-[0_-14px_38px_-10px_rgba(15,23,42,0.16)]">
+          <div className="flex items-center justify-between gap-2 bg-white/60 px-5 py-3 border-b border-slate-200/70">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#5c6b73]">

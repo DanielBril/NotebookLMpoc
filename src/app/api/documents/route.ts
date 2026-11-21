@@ -132,7 +132,6 @@ export async function POST(req: NextRequest) {
     });
 
     let currentCount = existingDocs.length;
-    let currentTotalBytes = existingDocs.reduce((acc, d) => acc + d.sizeBytes, 0);
     let currentActiveTokens = existingDocs.reduce(
       (acc, d) => (d.isSelected ? acc + d.tokenCount : acc),
       0
@@ -141,8 +140,7 @@ export async function POST(req: NextRequest) {
     if (currentCount >= MAX_FILES_PER_USER) {
       return NextResponse.json(
         {
-          error:
-            "Maximum 10 sources reached. Delete a source to upload another.",
+          error: `Maximum ${MAX_FILES_PER_USER} sources reached. Delete a source to upload another.`,
         },
         { status: 400 }
       );
@@ -152,7 +150,7 @@ export async function POST(req: NextRequest) {
       const remaining = MAX_FILES_PER_USER - currentCount;
       return NextResponse.json(
         {
-          error: `You can only upload ${remaining} more ${remaining === 1 ? "source" : "sources"} (maximum 10 sources per user).`,
+          error: `You can only upload ${remaining} more ${remaining === 1 ? "source" : "sources"} (maximum ${MAX_FILES_PER_USER} sources per user).`,
         },
         { status: 400 }
       );
@@ -165,16 +163,7 @@ export async function POST(req: NextRequest) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
         return NextResponse.json(
           {
-            error: `"${file.name}" exceeds the 10 MB per-file size limit.`,
-          },
-          { status: 400 }
-        );
-      }
-
-      if (currentTotalBytes + file.size > MAX_TOTAL_STORAGE_BYTES) {
-        return NextResponse.json(
-          {
-            error: `Uploading "${file.name}" would exceed the 50 MB cumulative storage limit.`,
+            error: `"${file.name}" exceeds the 30 MB per-file size limit.`,
           },
           { status: 400 }
         );
@@ -230,7 +219,6 @@ export async function POST(req: NextRequest) {
       });
 
       currentCount += 1;
-      currentTotalBytes += file.size;
       if (fitsTokenCeiling) {
         currentActiveTokens += parsed.tokenCount;
       }

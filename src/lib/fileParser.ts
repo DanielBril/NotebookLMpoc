@@ -112,7 +112,7 @@ export async function parseDocumentBuffer(
     throw new Error("File is empty.");
   }
   if (buffer.length > MAX_FILE_SIZE_BYTES) {
-    throw new Error("File exceeds the 10 MB maximum file size limit.");
+    throw new Error("File exceeds the 30 MB maximum file size limit.");
   }
 
   const validation = validateFileType(filename, mimeType);
