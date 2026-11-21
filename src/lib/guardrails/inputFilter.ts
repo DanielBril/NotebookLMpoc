@@ -127,7 +127,9 @@ const OUT_OF_SCOPE_RULES: SignatureRule[] = [
   },
 ];
 
-function checkRulesAgainstText(
+import type { GuardrailConfig } from "@/lib/guardrailConfig";
+
+function checkInjectionRules(
   text: string
 ): { rule: SignatureRule; matchedFragment: string } | null {
   for (const rule of INJECTION_AND_DANGEROUS_RULES) {
@@ -136,10 +138,34 @@ function checkRulesAgainstText(
       return { rule, matchedFragment: match[0].slice(0, 120) };
     }
   }
+  return null;
+}
+
+function checkOutOfScopeRules(
+  text: string
+): { rule: SignatureRule; matchedFragment: string } | null {
   for (const rule of OUT_OF_SCOPE_RULES) {
     const match = text.match(rule.pattern);
     if (match) {
       return { rule, matchedFragment: match[0].slice(0, 120) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks whether a user query matches any developer-configured allowlist phrase.
+ */
+export function matchesCustomAllowTerm(
+  query: string,
+  config?: GuardrailConfig
+): string | null {
+  if (!config?.customAllowTerms?.length) return null;
+  const lowered = query.toLowerCase();
+  for (const term of config.customAllowTerms) {
+    const t = term.trim().toLowerCase();
+    if (t.length >= 2 && lowered.includes(t)) {
+      return term;
     }
   }
   return null;
@@ -159,7 +185,7 @@ function inspectBase64Smuggling(
     try {
       const decoded = Buffer.from(token, "base64").toString("utf-8");
       if (/^[\x20-\x7E\r\n\t]+$/.test(decoded) && decoded.length >= 16) {
-        const hit = checkRulesAgainstText(decoded);
+        const hit = checkInjectionRules(decoded);
         if (hit && hit.rule.status === "BLOCKED_INJECTION") {
           return {
             rule: {
@@ -190,31 +216,61 @@ export function sanitizeAuditSnippet(input: string, maxLen = 280): string {
 
 /**
  * Layer 1 deterministic heuristic & signature pre-filter (< 2ms, 0 LLM tokens).
+ * Respects live developer GuardrailConfig for custom allow/block lists and out-of-scope toggles.
  */
 export function inspectUserInput(
   query: string,
-  lang: GuardrailLang = "he"
+  lang: GuardrailLang = "he",
+  config?: GuardrailConfig
 ): InputFilterResult {
   const sanitizedSnippet = sanitizeAuditSnippet(query);
 
-  const directHit = checkRulesAgainstText(query);
-  if (directHit) {
+  // 1. Developer custom block phrases (checked first)
+  if (config?.customBlockTerms?.length) {
+    const lowered = query.toLowerCase();
+    for (const term of config.customBlockTerms) {
+      const cleanTerm = term.trim().toLowerCase();
+      if (cleanTerm.length >= 2 && lowered.includes(cleanTerm)) {
+        return {
+          blocked: true,
+          isDangerous: true,
+          status: "BLOCKED_INJECTION",
+          layer:
+            lang === "he"
+              ? "שכבה 1 (חוק חסימה מותאם)"
+              : "Layer 1 (Custom Developer Block Rule)",
+          rule: "L1_CUSTOM_BLOCK_TERM",
+          reason:
+            lang === "he"
+              ? `השאילתה תאמה לביטוי חסום מותאם שהוגדר במנהרת האבטחה.`
+              : `Query matched a custom blocked phrase configured in the Security Pipeline.`,
+          matchedFragment: term,
+          sanitizedSnippet,
+        };
+      }
+    }
+  }
+
+  // 2. Core injection & dangerous rules (always active)
+  const injHit = checkInjectionRules(query);
+  if (injHit) {
     return {
       blocked: true,
-      isDangerous: directHit.rule.status === "BLOCKED_INJECTION",
-      status: directHit.rule.status,
+      isDangerous: true,
+      status: injHit.rule.status,
       layer:
         lang === "he"
           ? "שכבה 1 (סינון דטרמיניסטי)"
           : "Layer 1 (Deterministic Pre-Filter)",
-      rule: directHit.rule.id,
+      rule: injHit.rule.id,
       reason:
-        lang === "he" ? directHit.rule.messageHe : directHit.rule.messageEn,
-      matchedFragment: directHit.matchedFragment,
+        lang === "he" ? injHit.rule.messageHe : injHit.rule.messageEn,
+      matchedFragment: injHit.matchedFragment,
       sanitizedSnippet,
     };
   }
 
+  // 3. Base64 smuggling check (always active)
   const base64Hit = inspectBase64Smuggling(query);
   if (base64Hit) {
     return {
@@ -231,6 +287,29 @@ export function inspectUserInput(
       matchedFragment: base64Hit.matchedFragment,
       sanitizedSnippet,
     };
+  }
+
+  // 4. Out-of-scope pre-filter (configurable via Developer Security Pipeline & allowlist)
+  const outOfScopeEnabled = config ? config.enableLayer1OutOfScope : true;
+  const allowMatch = matchesCustomAllowTerm(query, config);
+  if (outOfScopeEnabled && !allowMatch) {
+    const oosHit = checkOutOfScopeRules(query);
+    if (oosHit) {
+      return {
+        blocked: true,
+        isDangerous: false,
+        status: oosHit.rule.status,
+        layer:
+          lang === "he"
+            ? "שכבה 1 (סינון מחוץ לתחום)"
+            : "Layer 1 (Out-of-Scope Pre-Filter)",
+        rule: oosHit.rule.id,
+        reason:
+          lang === "he" ? oosHit.rule.messageHe : oosHit.rule.messageEn,
+        matchedFragment: oosHit.matchedFragment,
+        sanitizedSnippet,
+      };
+    }
   }
 
   return {

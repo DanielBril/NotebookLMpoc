@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpDown, Loader2, Search, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  Loader2,
+  RotateCcw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { formatUsd } from "@/lib/pricing";
 import { MAX_FILES_PER_USER } from "@/lib/constants";
 import { useLanguage, type Translations } from "@/lib/i18n";
@@ -44,11 +52,13 @@ interface UsersTableProps {
   users: AdminUserRow[];
   currentAdminId: string;
   pendingBlockUserId: string | null;
+  pendingDeleteUserId: string | null;
   onToggleBlockUser: (
     userId: string,
     isBlocked: boolean,
     reason?: string
   ) => Promise<void>;
+  onDeleteUserPermanently: (userId: string) => Promise<void>;
 }
 
 function formatRelativeTime(isoDate: string, t: Translations): string {
@@ -66,9 +76,12 @@ export function UsersTable({
   users,
   currentAdminId,
   pendingBlockUserId,
+  pendingDeleteUserId,
   onToggleBlockUser,
+  onDeleteUserPermanently,
 }: UsersTableProps) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHe = lang === "he";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked">(
     "all"
@@ -76,6 +89,9 @@ export function UsersTable({
   const [sortKey, setSortKey] = useState<SortKey>("totalTokens");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [blockModalUser, setBlockModalUser] = useState<AdminUserRow | null>(
+    null
+  );
+  const [deleteModalUser, setDeleteModalUser] = useState<AdminUserRow | null>(
     null
   );
   const [blockReason, setBlockReason] = useState("");
@@ -412,22 +428,44 @@ export function UsersTable({
                             {t.admin.protectedAdmin}
                           </span>
                         ) : u.isBlocked ? (
-                          <button
-                            id={`unblock-user-${u.id}`}
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => void onToggleBlockUser(u.id, false)}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 px-2.5 py-1 text-xs font-semibold text-emerald-700 disabled:opacity-40 transition-colors cursor-pointer"
-                          >
-                            {isBusy && (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            )}
-                            <span>
-                              {isBusy
-                                ? t.admin.unblocking
-                                : t.admin.unblockBtn}
-                            </span>
-                          </button>
+                          <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              id={`unblock-user-${u.id}`}
+                              type="button"
+                              disabled={isBusy || pendingDeleteUserId === u.id}
+                              onClick={() => void onToggleBlockUser(u.id, false)}
+                              className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 px-2.5 py-1 text-xs font-semibold text-emerald-700 disabled:opacity-40 transition-colors cursor-pointer"
+                            >
+                              {isBusy ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-3 w-3" />
+                              )}
+                              <span>
+                                {isBusy
+                                  ? t.admin.unblocking
+                                  : isHe
+                                    ? "שחזר"
+                                    : "Restore"}
+                              </span>
+                            </button>
+                            <button
+                              id={`delete-user-${u.id}`}
+                              type="button"
+                              disabled={isBusy || pendingDeleteUserId === u.id}
+                              onClick={() => setDeleteModalUser(u)}
+                              className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 hover:bg-rose-600 hover:text-white hover:border-rose-600 px-2.5 py-1 text-xs font-semibold text-rose-700 disabled:opacity-40 transition-colors cursor-pointer"
+                            >
+                              {pendingDeleteUserId === u.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                              <span>
+                                {isHe ? "מחק לצמיתות" : "Delete Data"}
+                              </span>
+                            </button>
+                          </div>
                         ) : (
                           <button
                             id={`block-user-${u.id}`}
@@ -520,6 +558,76 @@ export function UsersTable({
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   )}
                   <span>{t.admin.confirmBlock}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete All User Data Modal */}
+      {deleteModalUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            dir={isHe ? "rtl" : "ltr"}
+            className="animate-modal-in w-full max-w-md rounded-2xl bg-white border border-rose-200 shadow-[0_18px_48px_rgba(15,23,42,0.22)] overflow-hidden"
+          >
+            <div className="px-5 py-4 bg-rose-50/80 border-b border-rose-200/80 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-rose-900">
+                <AlertTriangle className="h-4.5 w-4.5 text-rose-600 shrink-0" />
+                <h3 className="text-sm font-bold">
+                  {isHe
+                    ? `מחיקה לצמיתות של @${deleteModalUser.username}`
+                    : `Permanently delete @${deleteModalUser.username}`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalUser(null)}
+                className="rounded-md p-1 text-rose-500 hover:text-rose-900 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-sm leading-relaxed text-slate-700">
+                {isHe
+                  ? `פעולה זו תמחק לצמיתות את חשבון המשתמש @${deleteModalUser.username} ואת כל המידע שלו מהאתר: כל המסמכים שהעלה (${deleteModalUser.totalFiles}), היסטוריית הצ'אט, לוגי השימוש ולוגי המערכת. לא ניתן לשחזר מידע זה.`
+                  : `This will permanently erase @${deleteModalUser.username} and ALL of their site data: all uploaded documents (${deleteModalUser.totalFiles}), chat messages, usage telemetry, and system logs. This action cannot be undone.`}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalUser(null)}
+                  className="rounded-lg px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                >
+                  {t.admin.cancel}
+                </button>
+                <button
+                  id="confirm-permanent-delete-user-btn"
+                  type="button"
+                  disabled={pendingDeleteUserId === deleteModalUser.id}
+                  onClick={async () => {
+                    const targetId = deleteModalUser.id;
+                    await onDeleteUserPermanently(targetId);
+                    setDeleteModalUser(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40 cursor-pointer"
+                >
+                  {pendingDeleteUserId === deleteModalUser.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  <span>
+                    {isHe ? "מחק את כל המידע לצמיתות" : "Delete All Data Permanently"}
+                  </span>
                 </button>
               </div>
             </div>

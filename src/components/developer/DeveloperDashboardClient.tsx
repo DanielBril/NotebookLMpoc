@@ -3,22 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  Cpu,
-  FileDown,
   Loader2,
   MessageSquareQuote,
   RefreshCw,
+  Wrench,
   X,
   XCircle,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { PipelineInspectorPanel } from "@/components/admin/PipelineInspectorPanel";
-import {
-  DeveloperAnalyticsCharts,
-  exportDeveloperReportToPdf,
-  type DeveloperAnalyticsPayload,
-  type DeveloperGraphId,
-} from "@/components/developer/DeveloperAnalyticsCharts";
 import {
   formatLatencySeconds,
   formatTokensCompact,
@@ -26,7 +19,6 @@ import {
 } from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
 import type { RepairAction } from "@/app/api/developer/repair/route";
-import type { ModelOption } from "@/lib/modelConfig";
 
 interface DeveloperDiagnosticsResponse {
   generatedAt: string;
@@ -35,9 +27,6 @@ interface DeveloperDiagnosticsResponse {
     dbPingMs: number;
     openAiConfigured: boolean;
     primaryModel: string;
-    modelUpdatedBy: string | null;
-    modelUpdatedAt: string | null;
-    availableModels: ModelOption[];
     guardrailModel: string;
     googleOAuthConfigured: boolean;
     authSecretConfigured: boolean;
@@ -95,7 +84,9 @@ interface DeveloperDiagnosticsResponse {
       { count: number; bytes: number; tokens: number }
     >;
   };
-  analytics: DeveloperAnalyticsPayload;
+  analytics: {
+    overallSuccessRatePct: number;
+  };
   decisionLogs: Array<{
     id: string;
     userId: string;
@@ -162,14 +153,7 @@ export function DeveloperDashboardClient({
   const [actionResults, setActionResults] = useState<
     Record<string, InlineActionResult>
   >({});
-  const [selectedModel, setSelectedModel] = useState<string>("");
-  const [isSavingModel, setIsSavingModel] = useState(false);
-  const [modelResult, setModelResult] = useState<InlineActionResult | null>(
-    null
-  );
   const [error, setError] = useState<string | null>(null);
-  const [graph1, setGraph1] = useState<DeveloperGraphId>("filesByType");
-  const [graph2, setGraph2] = useState<DeveloperGraphId>("overallSuccessRate");
   const [decisionFilter, setDecisionFilter] = useState<
     | "ALL"
     | "NO_CONTEXT_FOUND"
@@ -181,6 +165,15 @@ export function DeveloperDashboardClient({
     "ALL"
   );
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  // Handoff state: click "Flag & Fix in Security Tunnel" on any Decision Audit row
+  const [flaggedTunnelPrompt, setFlaggedTunnelPrompt] = useState<string | null>(
+    null
+  );
+  const [flaggedTunnelNote, setFlaggedTunnelNote] = useState<string | null>(
+    null
+  );
+  const [flaggedTunnelKey, setFlaggedTunnelKey] = useState(0);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -196,7 +189,6 @@ export function DeveloperDashboardClient({
       }
       const json = (await res.json()) as DeveloperDiagnosticsResponse;
       setData(json);
-      setSelectedModel(json.health.primaryModel);
     } catch {
       setError("Network error while fetching developer diagnostics.");
     } finally {
@@ -219,7 +211,6 @@ export function DeveloperDashboardClient({
         }
         const json = (await res.json()) as DeveloperDiagnosticsResponse;
         setData(json);
-        setSelectedModel(json.health.primaryModel);
       } catch {
         if (!cancelled) {
           setError("Network error while fetching developer diagnostics.");
@@ -284,51 +275,21 @@ export function DeveloperDashboardClient({
     }
   }
 
-  async function handleSaveGlobalModel() {
-    if (!selectedModel || isSavingModel) return;
-    setIsSavingModel(true);
-    setModelResult(null);
-    try {
-      const res = await fetch("/api/developer/model", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel }),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        primaryModel?: string;
-        error?: string;
-      };
-      const nowTime = new Date().toLocaleTimeString();
-      if (!res.ok) {
-        setModelResult({
-          ok: false,
-          message:
-            json.error ||
-            (isHe ? "שמירת המודל נכשלה." : "Failed to update model."),
-          at: nowTime,
-        });
-      } else {
-        setModelResult({
-          ok: true,
-          message: isHe
-            ? `המודל הגלובלי הוחלף ל-${json.primaryModel} עבור כל המשתמשים.`
-            : `Global active model switched to "${json.primaryModel}" for all users.`,
-          at: nowTime,
-        });
-        await handleRefresh();
-      }
-    } catch {
-      setModelResult({
-        ok: false,
-        message: isHe
-          ? "שגיאת רשת בעדכון המודל."
-          : "Network error while updating model.",
-        at: new Date().toLocaleTimeString(),
-      });
-    } finally {
-      setIsSavingModel(false);
-    }
+  function handleFlagDecisionToSecurityTunnel(
+    msgText: string,
+    status: string,
+    reason: string | null
+  ) {
+    setFlaggedTunnelPrompt(msgText);
+    setFlaggedTunnelNote(
+      `${status}${reason ? ` — ${reason}` : ""}`
+    );
+    setFlaggedTunnelKey((k) => k + 1);
+    setTimeout(() => {
+      document
+        .getElementById("security-tunnel-section")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   const filteredLogs = useMemo(() => {
@@ -351,31 +312,6 @@ export function DeveloperDashboardClient({
   const h = data?.health;
   const eco = data?.economics;
   const anom = data?.anomalies;
-
-  const pdfReportData = useMemo(() => {
-    if (!data) return null;
-    return {
-      generatedAt: data.generatedAt,
-      primaryModel: data.health.primaryModel,
-      dbPingMs: data.health.dbPingMs,
-      totalUsers: data.storage.totalUsers,
-      totalDocuments: data.storage.totalDocuments,
-      totalStorageBytes: data.storage.totalStorageBytes,
-      economics: {
-        totalEvents: data.economics.totalEvents,
-        totalTokens: data.economics.totalTokens,
-        actualCostUsd: data.economics.actualCostUsd,
-        savedByCacheUsd: data.economics.savedByCacheUsd,
-        cacheHitRatePercent: data.economics.cacheHitRatePercent,
-        p50LatencyMs: data.economics.p50LatencyMs,
-        p95LatencyMs: data.economics.p95LatencyMs,
-        p99LatencyMs: data.economics.p99LatencyMs,
-      },
-      models: data.models,
-      analytics: data.analytics,
-      decisionLogs: data.decisionLogs,
-    };
-  }, [data]);
 
   const repairs: Array<{
     id: string;
@@ -462,57 +398,39 @@ export function DeveloperDashboardClient({
       <Navbar mode="developer" user={user} />
 
       <main className="flex-1 mx-auto w-full max-w-[1140px] px-4 sm:px-8 py-10 space-y-12">
-        {/* Header: title + Export PDF + Refresh */}
+        {/* Header: title + Refresh */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div dir={isHe ? "rtl" : "ltr"} className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
               {isHe
-                ? "דיאגנוסטיקה, החלטות ולוגים"
-                : "Diagnostics, Decisions & Logs"}
+                ? "דיאגנוסטיקה, מנהרת אבטחה ולוגים"
+                : "Diagnostics, Security Tunnel & Logs"}
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               {isHe
-                ? "שליטה במודל הגלובלי, גרפים מותאמים, סיבות חסימה וחוסר הקשר, וכלי תחזוקה."
-                : "Global model control, custom analytics charts, exact block / no-context audit, and maintenance tools."}
+                ? "בריאות מערכת, יומן החלטות עם הודעת המשתמש, עריכת מנהרת האבטחה, לוגים וכלי תחזוקה."
+                : "System health, decision audit with user messages, editable security tunnel, stack logs, and repair tools."}
               {data && (
                 <span className="font-mono text-xs text-slate-400" dir="ltr">
                   {" "}
-                  · {new Date(data.generatedAt).toLocaleTimeString()}
+                  · {new Date(data.generatedAt).toLocaleTimeString()} ·{" "}
+                  {data.health.primaryModel}
                 </span>
               )}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {pdfReportData && (
-              <button
-                type="button"
-                onClick={() =>
-                  exportDeveloperReportToPdf(
-                    pdfReportData,
-                    graph1,
-                    graph2,
-                    isHe ? "he" : "en"
-                  )
-                }
-                className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3.5 py-2 text-xs sm:text-sm font-medium text-blue-900 cursor-pointer"
-              >
-                <FileDown className="h-3.5 w-3.5 shrink-0" />
-                <span>{isHe ? "ייצוא PDF" : "Export PDF"}</span>
-              </button>
-            )}
-            <button
-              id="dev-refresh-btn"
-              type="button"
-              disabled={isRefreshing}
-              onClick={() => void handleRefresh()}
-              className="btn-jet inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              <span>{isHe ? "רענון" : "Refresh"}</span>
-            </button>
-          </div>
+          <button
+            id="dev-refresh-btn"
+            type="button"
+            disabled={isRefreshing}
+            onClick={() => void handleRefresh()}
+            className="btn-jet inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            <span>{isHe ? "רענון" : "Refresh"}</span>
+          </button>
         </div>
 
         {error && (
@@ -588,137 +506,7 @@ export function DeveloperDashboardClient({
               ))}
             </section>
 
-            {/* Level 1: Global Model Switcher (applies to ALL users) */}
-            <section className="glass-panel rounded-2xl border p-5 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.1)] space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div dir={isHe ? "rtl" : "ltr"} className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Cpu className="h-4.5 w-4.5 text-teal-600 shrink-0" />
-                    <h2 className="text-base font-semibold text-slate-900">
-                      {isHe
-                        ? "מודל AI פעיל לכל המשתמשים"
-                        : "Global Active LLM Model (All Users)"}
-                    </h2>
-                    <span
-                      dir="ltr"
-                      className="rounded-full bg-teal-50 border border-teal-200 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-teal-800"
-                    >
-                      {h.primaryModel}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {isHe
-                      ? "שינוי המודל כאן מתעדכן מיידית בבסיס הנתונים ומשפיע על הצ'אט ועל כלי הסטודיו עבור כל המשתמשים."
-                      : "Switching the model here persists globally and immediately applies to Q&A chat and Studio tools for every user."}
-                    {h.modelUpdatedBy && h.modelUpdatedAt && (
-                      <span
-                        dir="ltr"
-                        className="ms-1.5 font-mono text-[11px] text-slate-400"
-                      >
-                        · {isHe ? "עודכן ע״י" : "Updated by"} @
-                        {h.modelUpdatedBy} (
-                        {new Date(h.modelUpdatedAt).toLocaleString()})
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
-                  <select
-                    id="global-model-select"
-                    value={selectedModel || h.primaryModel}
-                    onChange={(e) => {
-                      setSelectedModel(e.target.value);
-                      setModelResult(null);
-                    }}
-                    dir="ltr"
-                    className="flex-1 sm:flex-none min-w-[210px] max-w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40 cursor-pointer"
-                  >
-                    {h.availableModels.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label} ({m.id}) — ${m.inputPer1M}/${m.outputPer1M} per 1M
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    id="save-global-model-btn"
-                    type="button"
-                    disabled={
-                      isSavingModel ||
-                      !selectedModel ||
-                      selectedModel === h.primaryModel
-                    }
-                    onClick={() => void handleSaveGlobalModel()}
-                    className="btn-jet inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold cursor-pointer"
-                  >
-                    {isSavingModel && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                    )}
-                    <span>
-                      {isHe ? "החל לכל המשתמשים" : "Apply to All Users"}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {selectedModel && (
-                <p
-                  dir={isHe ? "rtl" : "ltr"}
-                  className="text-[11px] text-slate-500"
-                >
-                  {(() => {
-                    const opt = h.availableModels.find(
-                      (m) => m.id === selectedModel
-                    );
-                    if (!opt) return null;
-                    return isHe ? opt.descriptionHe : opt.descriptionEn;
-                  })()}
-                </p>
-              )}
-
-              {modelResult && (
-                <div
-                  dir={isHe ? "rtl" : "ltr"}
-                  className={`animate-fade-in flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs ${
-                    modelResult.ok
-                      ? "bg-emerald-50/90 border-emerald-200 text-emerald-950"
-                      : "bg-rose-50/90 border-rose-200 text-rose-950"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {modelResult.ok ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                    )}
-                    <span className="break-words">{modelResult.message}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setModelResult(null)}
-                    className="shrink-0 text-slate-500 hover:text-slate-900 cursor-pointer"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </section>
-
-            {/* Level 1: Customizable 2-Graph Analytics Section + PDF Export */}
-            {pdfReportData && (
-              <DeveloperAnalyticsCharts
-                analytics={data.analytics}
-                reportData={pdfReportData}
-                isHe={isHe}
-                graph1={graph1}
-                graph2={graph2}
-                onChangeGraph1={setGraph1}
-                onChangeGraph2={setGraph2}
-              />
-            )}
-
-            {/* Level 1: Blocked & Not-in-Context Decision Audit (with User Message) */}
+            {/* Level 1: Blocked & Not-in-Context Decision Audit (with User Message + Quick-Fix in Security Tunnel) */}
             <section className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div dir={isHe ? "rtl" : "ltr"}>
@@ -729,8 +517,8 @@ export function DeveloperDashboardClient({
                   </h2>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {isHe
-                      ? "מציג את ההודעה שהמשתמש שלח ואת הסיבה המדויקת (חוק, מילות מפתח שחסרו במקורות, או שכבת האבטחה)."
-                      : "Shows the exact user message that triggered each decision along with the rule, missing keywords, or security layer."}
+                      ? "מציג את ההודעה שהמשתמש שלח, הסיבה המדויקת, ואפשרות מיידית לסמן ולתקן במנהרת האבטחה."
+                      : "Shows the exact triggering user message, exact reason, and one-click handoff to fix false blocks/refusals in the Security Tunnel."}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-xs">
@@ -820,9 +608,31 @@ export function DeveloperDashboardClient({
                               {formatLatencySeconds(d.latencyMs)}
                             </span>
                           </div>
-                          <span className="font-mono text-[11px] text-slate-400">
-                            {new Date(d.createdAt).toLocaleString()}
-                          </span>
+                          <div className="flex items-center gap-2.5">
+                            {msgText && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleFlagDecisionToSecurityTunnel(
+                                    msgText,
+                                    d.status,
+                                    d.reason
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50/90 hover:bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-800 whitespace-nowrap cursor-pointer"
+                              >
+                                <Wrench className="h-3 w-3 shrink-0" />
+                                <span>
+                                  {isHe
+                                    ? "תקן במנהרת האבטחה"
+                                    : "Fix in Security Tunnel"}
+                                </span>
+                              </button>
+                            )}
+                            <span className="font-mono text-[11px] text-slate-400">
+                              {new Date(d.createdAt).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Triggering User Message */}
@@ -881,6 +691,13 @@ export function DeveloperDashboardClient({
                 </div>
               )}
             </section>
+
+            {/* Level 1: Editable Security Tunnel & Live 4-Layer Inspector */}
+            <PipelineInspectorPanel
+              externalPrompt={flaggedTunnelPrompt}
+              externalTriggerKey={flaggedTunnelKey}
+              externalContextNote={flaggedTunnelNote}
+            />
 
             {/* Level 1: System & Stack-Trace Logs (No resolve option) */}
             <section className="space-y-4">
@@ -1231,8 +1048,6 @@ export function DeveloperDashboardClient({
                 </dl>
               </div>
             </section>
-
-            <PipelineInspectorPanel />
           </>
         )}
       </main>

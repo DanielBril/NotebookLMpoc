@@ -1,6 +1,10 @@
 "use client";
 
-import { formatTokensCompact, formatUsd } from "@/lib/pricing";
+import {
+  formatLatencySeconds,
+  formatTokensCompact,
+  formatUsd,
+} from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
 
 export interface AdminKpis {
@@ -66,7 +70,8 @@ export function KpiGrid({ kpis }: KpiGridProps) {
     },
     {
       label: t.admin.kpiLatencySecurity,
-      value: kpis.avgLatencyMs > 0 ? `${kpis.avgLatencyMs}ms` : "—",
+      value:
+        kpis.avgLatencyMs > 0 ? formatLatencySeconds(kpis.avgLatencyMs) : "—",
       dot: kpis.dangerousFlags > 0 ? "bg-rose-500" : "bg-emerald-500",
       note: `${t.admin.kpiAnswered(kpis.totalQueries)} · ${t.admin.kpiDangerousFlags(kpis.dangerousFlags)}`,
     },

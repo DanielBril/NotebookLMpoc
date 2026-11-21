@@ -55,6 +55,7 @@ export function PeakHoursChart({
       dayOfWeekDistribution.map((d) => ({
         ...d,
         localizedDay: t.admin.days[d.day] ?? d.day,
+        avgLatencySec: Number((d.avgLatencyMs / 1000).toFixed(2)),
       })),
     [dayOfWeekDistribution, t.admin.days]
   );
@@ -203,7 +204,7 @@ export function PeakHoursChart({
                 tick={{ fontSize: 10, fill: "#64748b" }}
                 axisLine={false}
                 tickLine={false}
-                unit="ms"
+                unit="s"
               />
               <Tooltip
                 contentStyle={{
@@ -226,8 +227,8 @@ export function PeakHoursChart({
               <Line
                 yAxisId="right"
                 type="monotone"
-                dataKey="avgLatencyMs"
-                name={t.admin.chartLegendLatency}
+                dataKey="avgLatencySec"
+                name={isHe ? "השהיה ממוצעת (שניות)" : "Avg Latency (s)"}
                 stroke="#2563eb"
                 strokeWidth={2}
                 dot={{

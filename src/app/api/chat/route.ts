@@ -10,10 +10,12 @@ import {
   getActivePrimaryModel,
   supportsCustomTemperature,
 } from "@/lib/modelConfig";
+import { getGuardrailConfig } from "@/lib/guardrailConfig";
 import {
   generateNonce,
   getBorderlineSignals,
   inspectUserInput,
+  matchesCustomAllowTerm,
   sanitizeAuditSnippet,
   type GuardrailLang,
 } from "@/lib/guardrails/inputFilter";
@@ -346,7 +348,10 @@ export async function POST(req: NextRequest) {
   const hourOfDay = now.getUTCHours();
   const dayOfWeek = now.getUTCDay();
   const userId = session.user.id;
-  const primaryModel = await getActivePrimaryModel();
+  const [primaryModel, guardrailConfig] = await Promise.all([
+    getActivePrimaryModel(),
+    getGuardrailConfig(),
+  ]);
 
   let body: { query?: string; lang?: string };
   try {
@@ -394,7 +399,7 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   // LAYER 1: Deterministic Regex, Base64 Smuggling & XML Spoofing Pre-Filter
   // ---------------------------------------------------------------------------
-  const layer1 = inspectUserInput(query, lang);
+  const layer1 = inspectUserInput(query, lang, guardrailConfig);
   if (layer1.blocked && layer1.status) {
     const latencyMs = Date.now() - requestStartedAt;
     const isDangerous = layer1.status === "BLOCKED_INJECTION";
@@ -588,7 +593,12 @@ export async function POST(req: NextRequest) {
   // LAYER 4 (Pre-Synthesis): Fast Micro-Classifier on borderline queries
   // ---------------------------------------------------------------------------
   const borderlineSignals = getBorderlineSignals(query);
-  if (borderlineSignals.length > 0) {
+  const allowMatchedTerm = matchesCustomAllowTerm(query, guardrailConfig);
+  if (
+    guardrailConfig.enableLayer4MicroClassifier &&
+    !allowMatchedTerm &&
+    borderlineSignals.length > 0
+  ) {
     const cls = await runMicroClassifier(openai, query);
     if (cls.isInjection || cls.isGenerativeOutOfScope) {
       const isDangerous = cls.isInjection;
@@ -679,7 +689,7 @@ export async function POST(req: NextRequest) {
   // ---------------------------------------------------------------------------
   const nonce = generateNonce();
   const orderedSources = orderSourcesDeterministically(activeDocs);
-  const systemPrompt = buildGroundedSystemPrompt(nonce, lang);
+  const systemPrompt = buildGroundedSystemPrompt(nonce, lang, guardrailConfig);
   const sandboxedContext = assembleSandboxedContext(orderedSources, nonce);
   const wrappedQuery = wrapUserQuery(query, nonce);
 
@@ -736,16 +746,18 @@ export async function POST(req: NextRequest) {
             ttftMs = Date.now() - requestStartedAt;
           }
 
-          const guardCheck = outputGuard.inspectChunk(delta);
-          if (!guardCheck.safe) {
-            abortedByOutputGuard = true;
-            controller.enqueue(
-              buildSseEvent("guardrail_abort", {
-                content: outputGuardRefusal,
-                reason: guardCheck.reason,
-              })
-            );
-            break;
+          if (guardrailConfig.enableLayer4OutputCanary) {
+            const guardCheck = outputGuard.inspectChunk(delta);
+            if (!guardCheck.safe) {
+              abortedByOutputGuard = true;
+              controller.enqueue(
+                buildSseEvent("guardrail_abort", {
+                  content: outputGuardRefusal,
+                  reason: guardCheck.reason,
+                })
+              );
+              break;
+            }
           }
 
           fullAnswer += delta;

@@ -96,13 +96,8 @@ export function Navbar({
         {/* Start: Brand + Mode Navigation */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
-            href={
-              mode === "developer"
-                ? "/developer"
-                : mode === "admin"
-                  ? "/admin"
-                  : "/workspace"
-            }
+            href="/workspace"
+            title={isHe ? "דף הבית — מרחב עבודה" : "Home — Workspace"}
             className="shrink-0 focus:outline-none transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             <BrandLogo size={24} variant="light" />
